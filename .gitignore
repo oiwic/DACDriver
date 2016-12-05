@@ -45,3 +45,11 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+Debug
+ipch
+Release
+x64
+DACDriver/Debug
+DACDriver/Release
+DACDriver/x64
