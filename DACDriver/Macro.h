@@ -1,5 +1,13 @@
-#ifndef MACRO_H
-#define MACRO_H
+/*
+	FileName:Macro.h
+	Author:GuoCheng
+	E-mail:fortune@mail.ustc.edu.cn
+	All right reserved @ GuoCheng.
+	Modified: 2017.2.15
+	Description:
+*/
+
+#pragma once
 
 /* Define the channel of a DAC */
 #define CHANNEL_NUM 4
@@ -9,6 +17,9 @@
 
 /* Define the sequency number of a channel. */
 #define CHANNEL_SEQ 4096
+
+/* Define max wait task num */
+#define WAIT_TASK_MAX 256
 
 /* Define run mode of software. */
 #define PARALLEL 1
@@ -30,4 +41,5 @@
 #define STAT_DMA_ERR          ( 0xC )
 #define STAT_LAST             ( STAT_DMA_ERR )
 
-#endif
+/* Define software version */
+#define DAC_DESCRIPTION ("DAC communication driver v1.0")

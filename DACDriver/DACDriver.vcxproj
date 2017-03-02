@@ -21,6 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{1D16DFB1-E3FD-49F0-9EA4-C567FC337BEE}</ProjectGuid>
     <RootNamespace>DACDriver</RootNamespace>
+    <ProjectName>USTCDACDriver</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -117,7 +118,7 @@
     <ClInclude Include="Communication.h" />
     <ClInclude Include="DACDeviceProc.h" />
     <ClInclude Include="DACDriver.h" />
-    <ClInclude Include="Export.h" />
+    <ClInclude Include="USTCDACDriver.h" />
     <ClInclude Include="Header.h" />
     <ClInclude Include="Macro.h" />
   </ItemGroup>

@@ -35,9 +35,6 @@
     <ClInclude Include="DACDeviceProc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Export.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Header.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -45,6 +42,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Communication.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="USTCDACDriver.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

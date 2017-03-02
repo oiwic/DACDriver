@@ -1,5 +1,14 @@
-#ifndef DACDRIVER_H
-#define DACDRIVER_H
+/*
+	FileName:DACDriver.h
+	Author:GuoCheng
+	E-mail:fortune@mail.ustc.edu.cn
+	All right reserved @ GuoCheng.
+	Modified: 2017.2.15
+	Description:
+*/
+
+
+#pragma once
 
 //Define four different functions.
 typedef enum FunctionType
@@ -36,7 +45,6 @@ typedef struct TaskList
 	CtrlCmd ctrlCmd;			//instructin to send to fpga.
 	Resp   resp;				//response of the fpga.
 	char*  pData;				//data for write memory or read memory.
-	struct TaskList* pNext;		//The next tasklist pointer.
 }TaskList;
 
 /* Define a socketinfo struct. */
@@ -51,21 +59,24 @@ typedef struct DACDeviceList
 {
 	UINT id;						//Identiry the device.
 	UINT exitFlag;					//Exit Flag, the thread will exit if set this flag.
-	HANDLE hMutex_Device;			//Mutex signal release by main thread.
-	HANDLE hMutex_Main;				//Mutex signal releaseed by Device thread.
+	HANDLE	 semaphoreSpace;		//Mutex signal release by main thread.
+	HANDLE   semaphoreTask;			//Mutex signal releaseed by Device thread.
 	HANDLE hThread;					//Handle of thread.
 	SocketInfo socketInfo;			//Store the information of the socket.
-	TaskList *pFirst;				//The first pointer of the task.
+	TaskList task[WAIT_TASK_MAX];	//The first pointer of the task.
+	UINT mainCounter;				//Indicate the position of free space, only access by main thread.
+	UINT deviceCounter;				//Indicate the position of task, write by device thread and read by main thread.
 	struct DACDeviceList *pNext;	//The Next Device pointer.
 }DACDeviceList;
 /* Parameter for device thread. */
 typedef struct DevicePara
 {
-	TaskList **ppTaskList;
-	HANDLE	 *pHMutex_Device;
-	HANDLE   *pHMutex_Main;
+	TaskList *pTask;
+	HANDLE	 *pSemaphoreSpace;
+	HANDLE   *pSemaphoreTask;
 	UINT	 *pExitFlag;
 	SOCKET	 *pSocket;
+	UINT	 *pDeviceCounter;
 }DevicePara;
 /* Add a device to list head */
 void AddList(DACDeviceList *pNow);
@@ -78,4 +89,3 @@ void DeleteAllTask(TaskList *pFirst);
 /* Find a device pointer by it's id */
 DACDeviceList* FindList(UINT id);
 
-#endif

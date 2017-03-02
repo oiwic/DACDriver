@@ -1,3 +1,12 @@
+/*
+	FileName:Communication.c
+	Author:GuoCheng
+	E-mail:fortune@mail.ustc.edu.cn
+	All right reserved @ GuoCheng.
+	Modified: 2017.2.15
+	Description:
+*/
+
 #include "Header.h"
 
 int RWInstructionExe(SOCKET* pSocket,CtrlCmd ctrlCmd,Resp *pResp,char *pData)

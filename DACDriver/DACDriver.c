@@ -1,8 +1,16 @@
+/*
+	FileName:DACDriver.c
+	Author:GuoCheng
+	E-mail:fortune@mail.ustc.edu.cn
+	All right reserved @ GuoCheng.
+	Modified: 2017.2.25
+	Description: The main body of DACDriver.
+*/
+
 #define DLLAPI  __declspec(dllexport)
 #include "Header.h"
 
 DACDeviceList* pFirst = NULL;		//First device pointer.
-int g_IsParallel = SERIAL;			//Indicate whether softwre run as parallel mode.
 
 void AddList(DACDeviceList*pNow)
 {
@@ -50,58 +58,46 @@ DACDeviceList* FindList(UINT id)
 	return NULL;
 }
 
-void AddTask(DACDeviceList *pSelect,TaskList *pNew)
+void InitTask(TaskList *pTask,int num)
 {
-	if(pNew != NULL && pSelect != NULL)
+	int i = 0;
+	for(i=0;i<num;i++)
 	{
-		pNew->pNext =  pSelect->pFirst;
-		pSelect->pFirst = pNew;
+		memset(pTask+i,0,sizeof(TaskList));
 	}
 }
 
-void DeleteAllTask(TaskList *pFirstTask)
+void ClearTask(TaskList* pTask,int num)
 {
-	TaskList *pTemp;
-	while(pFirstTask)
+	int i = 0;
+	for(i=0;i<num;i++)
 	{
-		pTemp = pFirstTask->pNext;
-		free(pFirstTask->pData);
-		free(pFirstTask);
-		pFirstTask = pTemp;
+		free((pTask+i)->pData);
 	}
 }
 
-DLLAPI int Open(UINT *id,char* ip,WORD port)
+DLLAPI int Open(UINT *pID,char* ip,WORD port)
 {	
 	DACDeviceList *pNew;
 	WORD wVersionRequest;
 	DevicePara *pPara;
-	int deviceID = inet_addr(ip);
+	UINT deviceID = inet_addr(ip);
 
-	/*If device exsist, direct return. */
+	/* If device exist, direct return. */
 	pNew = FindList(deviceID);
 	if(pNew != NULL) return RES_OK;
 
-	pNew = (DACDeviceList*)malloc(sizeof(DACDeviceList)); //Add a device node.
-	pPara = (DevicePara*)malloc(sizeof(DevicePara));	  //The parameter for device thread.
+	/* If device does not exist, generate a now device */
+	pNew  = (DACDeviceList*)malloc(sizeof(DACDeviceList));
 
 	pNew->socketInfo.addrSrv.sin_family = AF_INET;
 	pNew->socketInfo.addrSrv.sin_port = htons(port);
 	pNew->socketInfo.addrSrv.sin_addr.S_un.S_addr = deviceID;
-	*id = deviceID;										 //Return the id of device to caller.
-
-	pNew->exitFlag = 0;
-	pNew->hMutex_Device = CreateSemaphore(0,1,1,0);			 //Signaled，The device thread release signal when device finished the tasks.
-	pNew->hMutex_Main = CreateSemaphore(0,0,1,0);			 //Unsingnal, The main therad release signal when start the device thread.
-	pNew->id = *id;
-	pNew->pNext = NULL;
-	pNew->pFirst = NULL;
-
 	wVersionRequest = MAKEWORD(2,2);
+
 	if(WSAStartup(wVersionRequest,&(pNew->socketInfo.wsaData)) != 0) //Failed to request for certain version of winsock.
 	{
 		free(pNew);
-		free(pPara);
 		return RES_ERR;
 	}
 	pNew->socketInfo.sockClient = socket(AF_INET,SOCK_STREAM,0);//Create a stream sock.
@@ -109,26 +105,38 @@ DLLAPI int Open(UINT *id,char* ip,WORD port)
 	{
 		WSACleanup();
 		free(pNew);
-		free(pPara);
 		return RES_ERR;
 	}//创建套接字失败
-	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) == RES_ERR)
+	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) != 0)
 	{
 		WSACleanup();
 		free(pNew);
-		free(pPara);
 		return RES_ERR;
-	}	//连接失败
+	}//连接失败
+
+	
+	pNew->semaphoreSpace = CreateSemaphore(0,WAIT_TASK_MAX,WAIT_TASK_MAX,0);		//Signaled，The device thread release signal when device finished the tasks.
+	pNew->semaphoreTask  = CreateSemaphore(0,0,WAIT_TASK_MAX,0);					//Unsingnal, The main therad release signal when start the device thread.
+	pNew->exitFlag = 0;
+	pNew->id = deviceID;
+	pNew->pNext = NULL;
+	pNew->mainCounter = 0;
+	pNew->deviceCounter = 0;
+	InitTask(&(pNew->task[0]),WAIT_TASK_MAX);
 
 	/* Assign parameter for device thread. */
+	pPara = (DevicePara*)malloc(sizeof(DevicePara));
 	pPara->pExitFlag  = &(pNew->exitFlag);
-	pPara->pHMutex_Device = &(pNew->hMutex_Device);
-	pPara->pHMutex_Main = &(pNew->hMutex_Main);
-	pPara->ppTaskList = &(pNew->pFirst);
-	pPara->pSocket	  = &(pNew->socketInfo.sockClient);
+	pPara->pSemaphoreSpace = &(pNew->semaphoreSpace);
+	pPara->pSemaphoreTask  = &(pNew->semaphoreTask);
+	pPara->pTask = &(pNew->task[0]);
+	pPara->pSocket	= &(pNew->socketInfo.sockClient);
+	pPara->pDeviceCounter = &(pNew->deviceCounter);
 	
-	AddList(pNew);//Add the new device to list.
 	pNew->hThread = (HANDLE)_beginthreadex(0,0,DeviceProc,pPara,0,0);//Create device thread and run immediately.
+
+	AddList(pNew);   //Add the new device to list.
+	*pID = deviceID; //retrun ID
 
 	return RES_OK;
 }
@@ -139,14 +147,14 @@ DLLAPI int Close(UINT id)
 	pNow = FindList(id);
 	if(pNow == NULL) return RES_ERR;
 	pNow->exitFlag = 1;
-	if(g_IsParallel == SERIAL && WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,INFINITE))
+	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,INFINITE))
 	{
 		CloseHandle(pNow->hThread);
-		CloseHandle(pNow->hMutex_Main);
-		CloseHandle(pNow->hMutex_Device);
+		CloseHandle(pNow->semaphoreTask);
+		CloseHandle(pNow->semaphoreSpace);
 		closesocket(pNow->socketInfo.sockClient);
 		WSACleanup();
-		DeleteAllTask(pNow->pFirst);
+		ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
 		DeleteList(pNow);
 		return RES_OK;
 	}
@@ -156,246 +164,210 @@ DLLAPI int Close(UINT id)
 DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 {
 	DACDeviceList* pSelect = FindList(id);
+	DWORD obj;
 	if(pSelect == NULL) return RES_ERR;
-	if(g_IsParallel)
+	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
+	if(obj == WAIT_OBJECT_0)
 	{
-		TaskList *pTaskList = (TaskList*)malloc(sizeof(TaskList));
-		pTaskList->funcType = FixParameterSend;
-		pTaskList->pFunc = &RWInstructionExe;
-		pTaskList->ctrlCmd.instrction = instruction;
-		pTaskList->ctrlCmd.para1 = para1;
-		pTaskList->ctrlCmd.para2 = para2;
-		pTaskList->pData = NULL;
-		pTaskList->pNext = NULL;
-		AddTask(pSelect,pTaskList);
-		return RES_WAIT;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = para2;
+		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		pSelect->task[pSelect->mainCounter].pData = NULL;
+		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
+		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
+		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
+		return RES_OK;
 	}
-	else
-	{
-		if( SERIAL== g_IsParallel && WAIT_OBJECT_0 == WaitForSingleObject(pSelect->hMutex_Device,INFINITE))//Must wait for device thread finish it's task.
-		{
-			CtrlCmd ctrlCmd;
-			Resp resp;
-			ctrlCmd.instrction = instruction;
-			ctrlCmd.para1 = para1;
-			ctrlCmd.para2 = para2;
-			if(0 == RWInstructionExe(&(pSelect->socketInfo.sockClient),ctrlCmd,&resp,0))
-			{
-				ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-				if(resp.stat == STAT_SUCCESS)return RES_OK;
-				else return RES_ERR;
-			}
-			ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-		}
-		return RES_ERR;
-	}
+	return RES_ERR;
 }
 
-DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1,UINT *para2)
+DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 {
 	DACDeviceList* pSelect = FindList(id);
+	DWORD obj;
 	if(pSelect == NULL) return RES_ERR;
+	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
+	if(obj == WAIT_OBJECT_0)
+	{
+		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = 0;
+		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
+		pSelect->task[pSelect->mainCounter].pData = NULL;
+		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
+		pSelect->mainCounter = ((pSelect->mainCounter)++)%WAIT_TASK_MAX;
+		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
+		return RES_OK;
+	}
+	return RES_ERR;
 
-	if(g_IsParallel)
-	{
-		TaskList *pTaskList = (TaskList*)malloc(sizeof(TaskList));
-		pTaskList->funcType = FixParameterRecv;
-		pTaskList->pFunc = &RWInstructionExe;
-		pTaskList->ctrlCmd.instrction = instruction;
-		pTaskList->ctrlCmd.para1 = para1;
-		pTaskList->ctrlCmd.para2 = 0;
-		pTaskList->pData = NULL;
-		pTaskList->pNext = NULL;
-		AddTask(pSelect,pTaskList);
-		return RES_WAIT;
-	}
-	else
-	{
-		if( SERIAL== g_IsParallel && WAIT_OBJECT_0 == WaitForSingleObject(pSelect->hMutex_Device,INFINITE))//Must wait for device thread finish it's task.
-		{
-			CtrlCmd ctrlCmd;
-			Resp resp;
-			ctrlCmd.instrction = instruction;
-			ctrlCmd.para1 = para1;
-			ctrlCmd.para2 = 0;
-			if(0 == RWInstructionExe(&(pSelect->socketInfo.sockClient),ctrlCmd,&resp,0))
-			{
-				ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-				if(resp.stat == STAT_SUCCESS)
-				{
-					*para2 = resp.data;
-					return RES_OK;
-				}
-				else return RES_ERR;
-			}
-			ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-		}
-		return RES_ERR;
-	}
 }
 
 DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pData)
 {
-	DACDeviceList* pSelect = FindList(id);
-	if(pSelect == NULL) return RES_ERR;
 
-	if(g_IsParallel)
+	DACDeviceList* pSelect = FindList(id);
+	DWORD obj;
+	if(pSelect == NULL) return RES_ERR;
+	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
+	if(obj == WAIT_OBJECT_0)
 	{
-		TaskList *pTaskList = (TaskList*)malloc(sizeof(TaskList));
-		pTaskList->funcType = FixParameterRecv;
-		pTaskList->pFunc = &WriteMemoryExe;
-		pTaskList->ctrlCmd.instrction = instruction;
-		pTaskList->ctrlCmd.para1 = start;
-		pTaskList->ctrlCmd.para2 = length;
-		pTaskList->pData = (char*)malloc(length);
-		pTaskList->pNext = NULL;
-		memcpy(pTaskList->pData,pData,length);
-		AddTask(pSelect,pTaskList);
-		return RES_WAIT;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
+		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		free(pSelect->task[pSelect->mainCounter].pData);
+		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
+		memcpy(pSelect->task[pSelect->mainCounter].pData,pData,length);
+		pSelect->task[pSelect->mainCounter].pFunc = &WriteMemoryExe;
+		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
+		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
+		return RES_OK;
+	}
+	return RES_ERR;
+}
+
+DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
+{
+	DACDeviceList* pSelect = FindList(id);
+	DWORD obj;
+	if(pSelect == NULL) return RES_ERR;
+	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
+	if(obj == WAIT_OBJECT_0)
+	{
+		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
+		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
+		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
+		free(pSelect->task[pSelect->mainCounter].pData);
+		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
+		pSelect->task[pSelect->mainCounter].pFunc = &ReadMemoryExe;
+		pSelect->mainCounter = ((pSelect->mainCounter)++)%WAIT_TASK_MAX;
+		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
+		return RES_OK;
+	}
+	return RES_ERR;
+}
+
+DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
+{
+	DACDeviceList* pSelect = FindList(id);
+	UINT timeOut = (UINT)(time*1000);
+	if(pSelect == NULL) return RES_ERR;
+	WaitUntilFinished(id);
+	if(direction == 0)
+	{
+		if(0 == setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeOut,sizeof(int)))
+			return RES_OK;
+		else 
+			return RES_ERR;
 	}
 	else
 	{
-		if( SERIAL== g_IsParallel && WAIT_OBJECT_0 == WaitForSingleObject(pSelect->hMutex_Device,INFINITE))//Must wait for device thread finish it's task.
-		{
-			CtrlCmd ctrlCmd;
-			Resp resp;
-			ctrlCmd.instrction = instruction;
-			ctrlCmd.para1 = start;
-			ctrlCmd.para2 = length;
-			if(0 == WriteMemoryExe(&(pSelect->socketInfo.sockClient),ctrlCmd,&resp,(char*)pData))
-			{
-				ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-				if(resp.stat == STAT_SUCCESS) return RES_OK;
-				else return RES_ERR;
-			}
-			ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-		}
-		return RES_ERR;
+		
+		if(0 == setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_SNDTIMEO,(char*)&timeOut,sizeof(int)))
+			return RES_OK;
+		else
+			return RES_ERR;
 	}
 }
 
-DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pData)
+DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstruction,UINT *pPara1,UINT *pPara2)
 {
 	DACDeviceList* pSelect = FindList(id);
-	if(pSelect == NULL) return RES_ERR;
-
-	if(g_IsParallel == PARALLEL)//In this mode, device threads are idle.
+	if(pSelect == NULL)	return RES_ERR;
+	if(offset >= WAIT_TASK_MAX) return RES_ERR;
+	WaitUntilFinished(id);
+	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
+	if(pSelect->task[offset].pFunc == NULL) return RES_ERR;
+	if(pSelect->task[offset].resp.stat != STAT_SUCCESS) return RES_ERR;
+	*pInstruction = pSelect->task[offset].ctrlCmd.instrction;
+	*pPara1 = pSelect->task[offset].ctrlCmd.para1;
+	*pPara2 = pSelect->task[offset].ctrlCmd.para2;
+	switch(pSelect->task[offset].funcType)
 	{
-		TaskList *pTaskList = (TaskList*)malloc(sizeof(TaskList));
-		pTaskList->funcType = FixParameterRecv;
-		pTaskList->pFunc = &ReadMemoryExe;
-		pTaskList->ctrlCmd.instrction = instruction;
-		pTaskList->ctrlCmd.para1 = start;
-		pTaskList->ctrlCmd.para2 = length;
-		pTaskList->pData = (char*)malloc(length);
-		pTaskList->pNext = NULL;
-		AddTask(pSelect,pTaskList);
-		return RES_WAIT;
+	case FixParameterSend: *pFunctype = 1; break;
+	case FixParameterRecv: *pFunctype = 2; break;
+	case FlexParameterSend:*pFunctype = 3; break;
+	case FlexParameterRecv:*pFunctype = 4; break;
 	}
-	else
-	{
-		if( SERIAL== g_IsParallel && WAIT_OBJECT_0 == WaitForSingleObject(pSelect->hMutex_Device,INFINITE))//Must wait for device thread finish it's task.
-		{
-			CtrlCmd ctrlCmd;
-			Resp resp;
-			ctrlCmd.instrction = instruction;
-			ctrlCmd.para1 = start;
-			ctrlCmd.para2 = length;
-			if(0 == ReadMemoryExe(&(pSelect->socketInfo.sockClient),ctrlCmd,&resp,(char*)pData))
-			{
-				ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-				if(resp.stat == STAT_SUCCESS) return RES_OK;
-				else return RES_ERR;
-			}
-			ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-		}
-		return RES_ERR;
-	}
-}
-
-DLLAPI int StartTask(UINT id)
-{
-	DACDeviceList* pTemp = pFirst;
-	if(g_IsParallel == SERIAL) return RES_ERR;//Serial mode can not run StartTask.
-	while(pTemp)							  //Lunch device thread. this function is called after SetTaskMode.
-	{
-		ReleaseSemaphore(pTemp->hMutex_Main,1,0);	  //Release signal for device.
-		pTemp = pTemp->pNext;
-	}
-	g_IsParallel = SERIAL;					  //Auto reset run mode.
 	return RES_OK;
 }
 
-DLLAPI int SetTimeOut(UINT id,float time)
+DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
-	int timeOut = (int)(time*1000);
-	if(pSelect == NULL) return RES_ERR;
-	if(WAIT_OBJECT_0 == WaitForSingleObject(pSelect->hMutex_Device,10))
-	{
-		if(setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeOut,sizeof(int)))return RES_ERR;
-		if(setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_SNDTIMEO,(char*)&timeOut,sizeof(int)))return RES_ERR;
-		ReleaseSemaphore(pSelect->hMutex_Device,1,0);
-		return RES_OK;
-	}
-	return RES_ERR;
-}
-
-DLLAPI int SetTaskMode()
-{
-	if(g_IsParallel == PARALLEL) return RES_OK;	//Do not need to set again
-	else										//Change mode from serial to parallel.
-	{
-		DACDeviceList* pTemp = pFirst;
-		while(pTemp != NULL)
-		{
-			DWORD obj = WaitForSingleObject(pTemp->hMutex_Device,INFINITE);
-			if(obj == WAIT_OBJECT_0) 	DeleteAllTask(pTemp->pFirst);
-			else return RES_ERR;	
-			pTemp = pTemp->pNext;
-		}
-		g_IsParallel = PARALLEL;
-		return RES_OK;
-	}
-}
-
-DLLAPI int GetReturn(UINT id,WORD *pData,UINT isStart)
-{
-	DACDeviceList* pSelect = FindList(id);
-	static TaskList* pNow = NULL;
 	if(pSelect == NULL)	return RES_ERR;
-	if(pNow == NULL || isStart == 1) pNow = pSelect->pFirst;
-	while(pNow != NULL)
+	if(offset >= WAIT_TASK_MAX) return RES_ERR;
+	WaitUntilFinished(id);
+	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
+	if(pSelect->task[offset].pFunc == NULL) return RES_ERR;
+	if(pSelect->task[offset].resp.stat != STAT_SUCCESS) return RES_ERR;
+	switch(pSelect->task[offset].funcType)
 	{
-		if(pNow->funcType == FlexParameterRecv)
-		{
-			memcpy(pData,pNow->pData,pNow->ctrlCmd.para2);
-			pNow = pNow->pNext;
-			return 0;
-		}
-		else if(pNow->funcType == FixParameterRecv)
-		{
-			memcpy(pData,&(pNow->resp.data),sizeof(pNow->resp.data));
-			pNow = pNow->pNext;
-			return 0;
-		}
-		else
-			pNow = pNow->pNext;
+	case FixParameterSend: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
+	case FixParameterRecv: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
+	case FlexParameterSend:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
+	case FlexParameterRecv:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
 	}
+	return RES_OK;
+}
+
+DLLAPI int CheckFinished(UINT id,UINT *isFinished)
+{
+	DACDeviceList* pSelect = FindList(id);
+	if(pSelect != NULL)
+	{
+		if(pSelect->mainCounter == pSelect->deviceCounter)
+			*isFinished = 1;
+		else
+			*isFinished = 0;
+		return RES_OK;
+	}
+	*isFinished = 0;
 	return RES_ERR;
 }
 
-DLLAPI int CheckFinished(UINT *isFinished)
+DLLAPI int WaitUntilFinished(UINT id)
 {
-	DACDeviceList* pTemp = pFirst;
-	UINT obj;
-	while(pTemp != NULL)
+	UINT isFinished = 0;
+	int ret = RES_OK;
+	while(!isFinished && ret == RES_OK)
 	{
-		obj = WaitForSingleObject(pTemp->hMutex_Device,10);
-		if(obj != WAIT_OBJECT_0){*isFinished = 0; return RES_OK;}
-		ReleaseSemaphore(pTemp->hMutex_Device,1,0);					//Release Mutex to avoid influencing the status. 
-		pTemp = pTemp->pNext;
+		ret = CheckFinished(id,&isFinished);
+		Sleep(1);
 	}
-	*isFinished = 1;
+	return ret;
+}
+
+DLLAPI int GetSoftInformation(char *pInformation)
+{
+	memcpy(pInformation,DAC_DESCRIPTION,strlen(DAC_DESCRIPTION));
+	pInformation[strlen(DAC_DESCRIPTION)] = 0;
+	return RES_OK;
+}
+
+DLLAPI int ScanDevice(char *pDeviceList)
+{
+	return RES_OK;
+}
+
+DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
+{
+	DACDeviceList* pSelect = FindList(id);
+	UINT i = 0;
+	if(pSelect == NULL)	return RES_ERR;
+	WaitUntilFinished(id);
+	*pIsSuccessed = 1;
+	while(i < WAIT_TASK_MAX && pSelect->task[i].pFunc != NULL)
+	{
+		if(pSelect->task[i].resp.stat != STAT_SUCCESS)
+		{
+			*pIsSuccessed = 0;
+			break;
+		}
+		i++;
+	}
 	return RES_OK;
 }

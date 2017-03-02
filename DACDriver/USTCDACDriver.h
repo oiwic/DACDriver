@@ -3,11 +3,11 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Create at 2016.11.17
+	Modified: 2017.2.24
+	Description: Export function.
 */
 
-#ifndef EXPORT_H
-#define EXPORT_H
+#pragma once
 
 #ifdef DLLAPI
 #else
@@ -32,30 +32,33 @@
 
 /* Define three return state. */
 #define RES_OK   (0)
-#define RES_WAIT (1)
-#define RES_ERR (-1)
+#define RES_ERR  (-1)
 
 /* Open a device and add it to device list. */
-DLLAPI int Open(UINT */*id*/,char*/*ip*/,WORD/*port*/);
+DLLAPI int Open(UINT */*pID*/,char*/*ip*/,WORD/*port*/);
 /* Close the device and clear the data */
 DLLAPI int Close(UINT/*id*/);
 /* Write a command to FPGA */
 DLLAPI int WriteInstruction(UINT/*id*/,UINT/*instructino*/,UINT/*para1*/,UINT/*para2*/);
 /* Read a register from FPGA. */
-DLLAPI int ReadInstruction(UINT/*id*/,UINT/*instruction*/,UINT/*addr*/,UINT*/*pReg*/);
+DLLAPI int ReadInstruction(UINT/*id*/,UINT/*instruction*/,UINT/*addr*/);
 /* Write data to DDR4 */
 DLLAPI int WriteMemory(UINT/*id*/,UINT/*instruction*/,UINT/*start*/,UINT/*length*/,WORD*/*pData*/);
 /* Read data from DDR4 */
-DLLAPI int ReadMemory(UINT/*id*/,UINT/*instruction*/,UINT/*start*/,UINT/*length*/,WORD*/*pData*/);
+DLLAPI int ReadMemory(UINT/*id*/,UINT/*instruction*/,UINT/*start*/,UINT/*length*/);
 /* Set TCPIP timeout,uint:second. */
-DLLAPI int SetTimeOut(UINT/*id*/,float/*time*/);
-/* Set Task Mode, set task mode to PARALLEL mode. It is auto reset to SERIAL mode after starttask. */
-DLLAPI int SetTaskMode();
+DLLAPI int SetTimeOut(UINT/*id*/,UINT /*direction*/,float/*time*/);
+/* Get funtion type and parameter */
+DLLAPI int GetFunctionType(UINT/*id*/,UINT/*offset*/,UINT*/*pFunctype*/,UINT */*pInstruction*/,UINT */*pPara1*/,UINT */*pPara2*/);
 /* If run as PARALLEL mode, the result will be store in stack, The stack is first in last out.*/
-DLLAPI int GetReturn(UINT/*id*/,WORD*/*pData*/,UINT /*isStart*/);
-/* Launch Device thread to execute Task. */
-DLLAPI int StartTask();
+DLLAPI int GetReturn(UINT/*id*/,UINT /*offset*/,WORD*/*pData*/);
 /* Check whether the task execute finished. */
-DLLAPI int CheckFinished(UINT* /*isFinished*/);
-
-#endif
+DLLAPI int CheckFinished(UINT/*id*/,UINT* /*isFinished*/);
+/* Wait task finished */
+DLLAPI int WaitUntilFinished(UINT /*id*/);
+/* Get software Information*/
+DLLAPI int GetSoftInformation(char */*description*/);
+/* Scan the local network */
+DLLAPI int ScanDevice(char *);
+/* Check if all task successed. */
+DLLAPI int CheckSuccessed(UINT/*id*/,UINT */*pIsSuccessed*/);
