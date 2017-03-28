@@ -176,6 +176,7 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = para2;
+		pSelect->task[pSelect->mainCounter].resp.stat = -1;
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
@@ -197,6 +198,7 @@ DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = 0;
+		pSelect->task[pSelect->mainCounter].resp.stat = -1;
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
@@ -220,6 +222,7 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
+		pSelect->task[pSelect->mainCounter].resp.stat = -1;
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
@@ -243,6 +246,7 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
+		pSelect->task[pSelect->mainCounter].resp.stat = -1;
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
