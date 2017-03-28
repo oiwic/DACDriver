@@ -85,7 +85,11 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 
 	/* If device exist, direct return. */
 	pNew = FindList(deviceID);
-	if(pNew != NULL) return RES_OK;
+	if(pNew != NULL) 
+	{
+		*pID = deviceID; //retrun ID
+		return RES_OK;
+	}
 
 	/* If device does not exist, generate a now device */
 	pNew  = (DACDeviceList*)malloc(sizeof(DACDeviceList));
