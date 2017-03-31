@@ -1,5 +1,0 @@
-<<<<<<< HEAD
-modified from local
-=======
-modified from cloud
->>>>>>> origin/beta
