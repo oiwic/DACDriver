@@ -202,7 +202,7 @@ DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
-		pSelect->mainCounter = ((pSelect->mainCounter)++)%WAIT_TASK_MAX;
+		pSelect->mainCounter = ((pSelect->mainCounter)+1)%WAIT_TASK_MAX;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
 		return RES_OK;
 	}
