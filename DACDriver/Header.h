@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.2.15
+	Modified: 2017.4.3
 	Description: A god header, it's not good to use this file.
 */
 
@@ -12,7 +12,7 @@
 #include <Windows.h>
 #include <process.h>
 #pragma comment (lib, "ws2_32")
-#include "Macro.h"
+#include "USTCDACError.h"
 #include "DACDriver.h"
 #include "Communication.h"
 #include "DACDeviceProc.h"

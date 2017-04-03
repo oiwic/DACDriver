@@ -24,7 +24,7 @@
     <ClCompile Include="Communication.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="main.c">
+    <ClCompile Include="mainTest.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,13 +38,13 @@
     <ClInclude Include="Header.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Macro.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Communication.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="USTCDACDriver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="USTCDACError.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

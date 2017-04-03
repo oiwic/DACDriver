@@ -112,7 +112,7 @@
     <ClCompile Include="Communication.c" />
     <ClCompile Include="DACDeviceProc.c" />
     <ClCompile Include="DACDriver.c" />
-    <ClCompile Include="main.c" />
+    <ClCompile Include="mainTest.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Communication.h" />
@@ -120,7 +120,7 @@
     <ClInclude Include="DACDriver.h" />
     <ClInclude Include="USTCDACDriver.h" />
     <ClInclude Include="Header.h" />
-    <ClInclude Include="Macro.h" />
+    <ClInclude Include="USTCDACError.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

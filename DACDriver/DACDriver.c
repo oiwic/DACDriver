@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.2.25
+	Modified: 2017.4.3
 	Description: The main body of DACDriver.
 */
 
@@ -82,13 +82,12 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	WORD wVersionRequest;
 	DevicePara *pPara;
 	UINT deviceID = inet_addr(ip);
-
 	/* If device exist, direct return. */
 	pNew = FindList(deviceID);
 	if(pNew != NULL) 
 	{
 		*pID = deviceID; //retrun ID
-		return RES_OK;
+		return OK;
 	}
 
 	/* If device does not exist, generate a now device */
@@ -102,23 +101,22 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	if(WSAStartup(wVersionRequest,&(pNew->socketInfo.wsaData)) != 0) //Failed to request for certain version of winsock.
 	{
 		free(pNew);
-		return RES_ERR;
+		return WSAGetLastError();
 	}
 	pNew->socketInfo.sockClient = socket(AF_INET,SOCK_STREAM,0);//Create a stream sock.
 	if(INVALID_SOCKET == pNew->socketInfo.sockClient)
 	{
 		WSACleanup();
 		free(pNew);
-		return RES_ERR;
+		return WSAGetLastError();
 	}//创建套接字失败
 	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) != 0)
 	{
 		WSACleanup();
 		free(pNew);
-		return RES_ERR;
+		return WSAGetLastError();
 	}//连接失败
 
-	
 	pNew->semaphoreSpace = CreateSemaphore(0,WAIT_TASK_MAX,WAIT_TASK_MAX,0);		//Signaled，The device thread release signal when device finished the tasks.
 	pNew->semaphoreTask  = CreateSemaphore(0,0,WAIT_TASK_MAX,0);					//Unsingnal, The main therad release signal when start the device thread.
 	pNew->exitFlag = 0;
@@ -142,14 +140,14 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	AddList(pNew);   //Add the new device to list.
 	*pID = deviceID; //retrun ID
 
-	return RES_OK;
+	return OK;
 }
 
 DLLAPI int Close(UINT id)
 {
 	DACDeviceList *pNow;
 	pNow = FindList(id);
-	if(pNow == NULL) return RES_ERR;
+	if(pNow == NULL) return ERR_NOOBJ;
 	pNow->exitFlag = 1;
 	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,INFINITE))
 	{
@@ -160,16 +158,16 @@ DLLAPI int Close(UINT id)
 		WSACleanup();
 		ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
 		DeleteList(pNow);
-		return RES_OK;
+		return OK;
 	}
-	return RES_ERR;
+	return ERR_WAIT;
 }
 
 DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 {
 	DACDeviceList* pSelect = FindList(id);
 	DWORD obj;
-	if(pSelect == NULL) return RES_ERR;
+	if(pSelect == NULL) return ERR_NOOBJ;
 	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
 	if(obj == WAIT_OBJECT_0)
 	{
@@ -182,16 +180,16 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
 		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
-		return RES_OK;
+		return OK;
 	}
-	return RES_ERR;
+	return ERR_WAIT;
 }
 
 DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 {
 	DACDeviceList* pSelect = FindList(id);
 	DWORD obj;
-	if(pSelect == NULL) return RES_ERR;
+	if(pSelect == NULL) return ERR_NOOBJ;
 	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
 	if(obj == WAIT_OBJECT_0)
 	{
@@ -204,9 +202,9 @@ DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
 		pSelect->mainCounter = ((pSelect->mainCounter)+1)%WAIT_TASK_MAX;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
-		return RES_OK;
+		return OK;
 	}
-	return RES_ERR;
+	return ERR_WAIT;
 
 }
 
@@ -215,7 +213,7 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 
 	DACDeviceList* pSelect = FindList(id);
 	DWORD obj;
-	if(pSelect == NULL) return RES_ERR;
+	if(pSelect == NULL) return ERR_NOOBJ;
 	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
 	if(obj == WAIT_OBJECT_0)
 	{
@@ -230,16 +228,16 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 		pSelect->task[pSelect->mainCounter].pFunc = &WriteMemoryExe;
 		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
-		return RES_OK;
+		return OK;
 	}
-	return RES_ERR;
+	return ERR_WAIT;
 }
 
 DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 {
 	DACDeviceList* pSelect = FindList(id);
 	DWORD obj;
-	if(pSelect == NULL) return RES_ERR;
+	if(pSelect == NULL) return ERR_NOOBJ;
 	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
 	if(obj == WAIT_OBJECT_0)
 	{
@@ -253,43 +251,37 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 		pSelect->task[pSelect->mainCounter].pFunc = &ReadMemoryExe;
 		pSelect->mainCounter = ((pSelect->mainCounter)++)%WAIT_TASK_MAX;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
-		return RES_OK;
+		return OK;
 	}
-	return RES_ERR;
+	return ERR_WAIT;
 }
 
 DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT timeOut = (UINT)(time*1000);
-	if(pSelect == NULL) return RES_ERR;
+	if(pSelect == NULL) return ERR_NOOBJ;
 	WaitUntilFinished(id);
 	if(direction == 0)
 	{
-		if(0 == setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeOut,sizeof(int)))
-			return RES_OK;
-		else 
-			return RES_ERR;
+		setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeOut,sizeof(int));
+		return WSAGetLastError();
 	}
 	else
 	{
-		
-		if(0 == setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_SNDTIMEO,(char*)&timeOut,sizeof(int)))
-			return RES_OK;
-		else
-			return RES_ERR;
+		setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_SNDTIMEO,(char*)&timeOut,sizeof(int));
+		return WSAGetLastError();
 	}
 }
 
 DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstruction,UINT *pPara1,UINT *pPara2)
 {
 	DACDeviceList* pSelect = FindList(id);
-	if(pSelect == NULL)	return RES_ERR;
-	if(offset >= WAIT_TASK_MAX) return RES_ERR;
+	if(pSelect == NULL)	return ERR_NOOBJ;
+	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
 	WaitUntilFinished(id);
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
-	if(pSelect->task[offset].pFunc == NULL) return RES_ERR;
-	if(pSelect->task[offset].resp.stat != STAT_SUCCESS) return RES_ERR;
+	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	*pInstruction = pSelect->task[offset].ctrlCmd.instrction;
 	*pPara1 = pSelect->task[offset].ctrlCmd.para1;
 	*pPara2 = pSelect->task[offset].ctrlCmd.para2;
@@ -300,18 +292,18 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	case FlexParameterSend:*pFunctype = 3; break;
 	case FlexParameterRecv:*pFunctype = 4; break;
 	}
-	return RES_OK;
+	return OK;
 }
 
 DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
-	if(pSelect == NULL)	return RES_ERR;
-	if(offset >= WAIT_TASK_MAX) return RES_ERR;
+	if(pSelect == NULL)	return ERR_NOOBJ;
+	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
 	WaitUntilFinished(id);
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
-	if(pSelect->task[offset].pFunc == NULL) return RES_ERR;
-	if(pSelect->task[offset].resp.stat != STAT_SUCCESS) return RES_ERR;
+	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
+	if(pSelect->task[offset].resp.stat != OK) return pSelect->task[offset].resp.stat;
 	switch(pSelect->task[offset].funcType)
 	{
 	case FixParameterSend: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
@@ -319,7 +311,7 @@ DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
 	case FlexParameterSend:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
 	case FlexParameterRecv:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
 	}
-	return RES_OK;
+	return OK;
 }
 
 DLLAPI int CheckFinished(UINT id,UINT *isFinished)
@@ -331,17 +323,17 @@ DLLAPI int CheckFinished(UINT id,UINT *isFinished)
 			*isFinished = 1;
 		else
 			*isFinished = 0;
-		return RES_OK;
+		return OK;
 	}
 	*isFinished = 0;
-	return RES_ERR;
+	return ERR_NOOBJ;
 }
 
 DLLAPI int WaitUntilFinished(UINT id)
 {
 	UINT isFinished = 0;
-	int ret = RES_OK;
-	while(!isFinished && ret == RES_OK)
+	int ret = OK;
+	while(!isFinished && ret == OK)
 	{
 		ret = CheckFinished(id,&isFinished);
 		Sleep(1);
@@ -353,29 +345,29 @@ DLLAPI int GetSoftInformation(char *pInformation)
 {
 	memcpy(pInformation,DAC_DESCRIPTION,strlen(DAC_DESCRIPTION));
 	pInformation[strlen(DAC_DESCRIPTION)] = 0;
-	return RES_OK;
+	return OK;
 }
 
 DLLAPI int ScanDevice(char *pDeviceList)
 {
-	return RES_OK;
+	return OK;
 }
 
 DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT i = 0;
-	if(pSelect == NULL)	return RES_ERR;
+	if(pSelect == NULL)	return ERR_NOOBJ;
 	WaitUntilFinished(id);
 	*pIsSuccessed = 1;
 	while(i < WAIT_TASK_MAX && pSelect->task[i].pFunc != NULL)
 	{
-		if(pSelect->task[i].resp.stat != STAT_SUCCESS)
+		if(pSelect->task[i].resp.stat != OK)
 		{
 			*pIsSuccessed = 0;
 			break;
 		}
 		i++;
 	}
-	return RES_OK;
+	return OK;
 }

@@ -3,12 +3,27 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.2.15
+	Modified: 2017.4.3
 	Description:
 */
 
-
 #pragma once
+
+/* Define software version */
+#define DAC_DESCRIPTION ("DAC communication driver v1.3")
+
+/* Define the channel of a DAC */
+#define CHANNEL_NUM 4
+
+/* Define the sample point of a channel. */
+#define CHANNEL_POT 32768
+
+/* Define the sequency number of a channel. */
+#define CHANNEL_SEQ 4096
+
+/* Define max wait task num */
+#define WAIT_TASK_MAX 256
+
 
 //Define four different functions.
 typedef enum FunctionType
