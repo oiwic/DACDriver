@@ -303,7 +303,6 @@ DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
 	WaitUntilFinished(id);
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
-	if(pSelect->task[offset].resp.stat != OK) return pSelect->task[offset].resp.stat;
 	switch(pSelect->task[offset].funcType)
 	{
 	case FixParameterSend: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
@@ -311,7 +310,7 @@ DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
 	case FlexParameterSend:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
 	case FlexParameterRecv:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
 	}
-	return OK;
+	return pSelect->task[offset].resp.stat;
 }
 
 DLLAPI int CheckFinished(UINT id,UINT *isFinished)
@@ -357,12 +356,14 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT i = 0;
+	UINT index = 0;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	WaitUntilFinished(id);
 	*pIsSuccessed = 1;
-	while(i < WAIT_TASK_MAX && pSelect->task[i].pFunc != NULL)
-	{
-		if(pSelect->task[i].resp.stat != OK)
+	index = (pSelect->mainCounter + WAIT_TASK_MAX - i)%WAIT_TASK_MAX;
+	while(i < WAIT_TASK_MAX && pSelect->task[index].pFunc != NULL)
+	{	
+		if(pSelect->task[index].resp.stat != OK)
 		{
 			*pIsSuccessed = 0;
 			break;
