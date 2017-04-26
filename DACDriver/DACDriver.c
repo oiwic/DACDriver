@@ -176,6 +176,7 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = para2;
 		pSelect->task[pSelect->mainCounter].resp.stat = -1;
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
 		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
@@ -198,6 +199,7 @@ DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = 0;
 		pSelect->task[pSelect->mainCounter].resp.stat = -1;
 		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
+		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
 		pSelect->mainCounter = ((pSelect->mainCounter)+1)%WAIT_TASK_MAX;
