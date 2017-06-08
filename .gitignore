@@ -53,3 +53,5 @@ x64
 DACDriver/Debug
 DACDriver/Release
 DACDriver/x64
+DACDriver.sdf
+DACDriver.suo
