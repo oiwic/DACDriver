@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.2.24
+	Modified: 2017.4.3
 	Description: Export function.
 */
 
@@ -30,9 +30,6 @@
 #define NULL 0
 #endif
 
-/* Define three return state. */
-#define RES_OK   (0)
-#define RES_ERR  (-1)
 
 /* Open a device and add it to device list. */
 DLLAPI int Open(UINT */*pID*/,char*/*ip*/,WORD/*port*/);
