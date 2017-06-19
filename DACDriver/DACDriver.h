@@ -10,7 +10,7 @@
 #pragma once
 
 /* Define software version */
-#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.4")
+#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.5 @ 2017/06/19")
 
 /* Define the channel of a DAC */
 #define CHANNEL_NUM 4
@@ -81,6 +81,7 @@ typedef struct DACDeviceList
 	TaskList task[WAIT_TASK_MAX];	//The first pointer of the task.
 	UINT mainCounter;				//Indicate the position of free space, only access by main thread.
 	UINT deviceCounter;				//Indicate the position of task, write by device thread and read by main thread.
+	UINT taskCounter;				//Indicate the number of task the check function will consider.
 	struct DACDeviceList *pNext;	//The Next Device pointer.
 }DACDeviceList;
 /* Parameter for device thread. */
@@ -103,4 +104,3 @@ void AddTask(DACDeviceList*,TaskList *pNew);
 void DeleteAllTask(TaskList *pFirst);
 /* Find a device pointer by it's id */
 DACDeviceList* FindList(UINT id);
-

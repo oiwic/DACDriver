@@ -124,6 +124,7 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	pNew->pNext = NULL;
 	pNew->mainCounter = 0;
 	pNew->deviceCounter = 0;
+	pNew->taskCounter = 0;
 	InitTask(&(pNew->task[0]),WAIT_TASK_MAX);
 
 	/* Assign parameter for device thread. */
@@ -180,6 +181,7 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
 		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
+		pSelect->taskCounter = pSelect->taskCounter + 1;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
 		return OK;
 	}
@@ -203,6 +205,7 @@ DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
 		pSelect->mainCounter = ((pSelect->mainCounter)+1)%WAIT_TASK_MAX;
+		pSelect->taskCounter = pSelect->taskCounter + 1;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
 		return OK;
 	}
@@ -229,6 +232,7 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 		memcpy(pSelect->task[pSelect->mainCounter].pData,pData,length);
 		pSelect->task[pSelect->mainCounter].pFunc = &WriteMemoryExe;
 		pSelect->mainCounter = ((pSelect->mainCounter) + 1)%WAIT_TASK_MAX;
+		pSelect->taskCounter = pSelect->taskCounter + 1;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
 		return OK;
 	}
@@ -252,6 +256,7 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
 		pSelect->task[pSelect->mainCounter].pFunc = &ReadMemoryExe;
 		pSelect->mainCounter = ((pSelect->mainCounter)++)%WAIT_TASK_MAX;
+		pSelect->taskCounter = pSelect->taskCounter + 1;
 		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
 		return OK;
 	}
@@ -362,9 +367,9 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	WaitUntilFinished(id);
 	*pIsSuccessed = 1;
-	index = (pSelect->mainCounter + WAIT_TASK_MAX - i)%WAIT_TASK_MAX;
-	while(i < WAIT_TASK_MAX && pSelect->task[index].pFunc != NULL)
+	while(i < pSelect->taskCounter && i < WAIT_TASK_MAX)
 	{	
+		index = (pSelect->mainCounter + WAIT_TASK_MAX - i)%WAIT_TASK_MAX;
 		if(pSelect->task[index].resp.stat != OK)
 		{
 			*pIsSuccessed = 0;
@@ -372,5 +377,6 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
 		}
 		i++;
 	}
+	pSelect->taskCounter = 0;
 	return OK;
 }
