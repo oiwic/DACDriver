@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.4.3
+	Modified: 2017.6.20
 	Description: The main body of DACDriver.
 */
 
@@ -267,8 +267,10 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT timeOut = (UINT)(time*1000);
+	int bFinished = OK;
 	if(pSelect == NULL) return ERR_NOOBJ;
-	WaitUntilFinished(id);
+	bFinished = WaitUntilFinished(id,1000);
+	if(bFinished != 0)	return bFinished;
 	if(direction == 0)
 	{
 		setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeOut,sizeof(int));
@@ -284,9 +286,11 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstruction,UINT *pPara1,UINT *pPara2)
 {
 	DACDeviceList* pSelect = FindList(id);
+	int bFinished = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	WaitUntilFinished(id);
+	bFinished = WaitUntilFinished(id,1000);
+	if(bFinished != 0)	return bFinished;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	*pInstruction = pSelect->task[offset].ctrlCmd.instrction;
@@ -302,22 +306,21 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	return OK;
 }
 
-DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
+DLLAPI int GetReturn(UINT id,UINT offset,UINT *pResStat,UINT*pResData,WORD *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
+	int bFinished = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	WaitUntilFinished(id);
+	bFinished = WaitUntilFinished(id,1000);
+	if(bFinished != 0)	return bFinished;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
-	switch(pSelect->task[offset].funcType)
-	{
-	case FixParameterSend: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
-	case FixParameterRecv: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
-	case FlexParameterSend:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
-	case FlexParameterRecv:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
-	}
-	return pSelect->task[offset].resp.stat;
+	memcpy(pResStat,&(pSelect->task[offset].resp.stat),4);
+	memcpy(pResData,&(pSelect->task[offset].resp.data),4);
+	if(pSelect->task[offset].funcType == FlexParameterSend || pSelect->task[offset].funcType == FlexParameterRecv)
+		memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);
+	return OK;
 }
 
 DLLAPI int CheckFinished(UINT id,UINT *isFinished)
@@ -335,14 +338,29 @@ DLLAPI int CheckFinished(UINT id,UINT *isFinished)
 	return ERR_NOOBJ;
 }
 
-DLLAPI int WaitUntilFinished(UINT id)
+DLLAPI int WaitUntilFinished(UINT id,UINT time)
 {
 	UINT isFinished = 0;
 	int ret = OK;
-	while(!isFinished && ret == OK)
+	if(time == 0)
 	{
-		ret = CheckFinished(id,&isFinished);
-		Sleep(1);
+		while(ret == OK)
+		{
+			ret = CheckFinished(id,&isFinished);
+			if(ret != OK || isFinished == 1)break;
+			Sleep(1);
+		}
+	}
+	else
+	{
+		while(ret == OK  && time > 0)
+		{
+			ret = CheckFinished(id,&isFinished);
+			if(ret != OK || isFinished == 1)break;
+			time = time - 1;
+			Sleep(1);
+		}
+		if(isFinished == 0)ret = WAR_TIMEOUT;
 	}
 	return ret;
 }
@@ -359,24 +377,71 @@ DLLAPI int ScanDevice(char *pDeviceList)
 	return OK;
 }
 
-DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
+DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 {
 	DACDeviceList* pSelect = FindList(id);
-	UINT i = 0;
+	UINT i = 1;
 	UINT index = 0;
 	if(pSelect == NULL)	return ERR_NOOBJ;
-	WaitUntilFinished(id);
+	WaitUntilFinished(id,0);
 	*pIsSuccessed = 1;
-	while(i < pSelect->taskCounter && i < WAIT_TASK_MAX)
+	while(i <= pSelect->taskCounter && i <= WAIT_TASK_MAX)
 	{	
 		index = (pSelect->mainCounter + WAIT_TASK_MAX - i)%WAIT_TASK_MAX;
 		if(pSelect->task[index].resp.stat != OK)
 		{
 			*pIsSuccessed = 0;
+			*pPosition = i;
 			break;
 		}
 		i++;
 	}
 	pSelect->taskCounter = 0;
 	return OK;
+}
+
+DLLAPI int GetErrorMsg(UINT errorcode ,char * strMsg)
+{
+	if(errorcode & USERDEF)
+	{
+		if(errorcode & SCR_PC)
+		{
+			char *prefix = "USTCDAC API failed: ";
+			char *info;
+			switch(errorcode)
+			{
+			case ERR_NOOBJ:info = "No object find.";break;
+			case ERR_WAIT: info = "WaitForSingleObject error.";break;
+			case ERR_PARA: info = "Parameter(s) error.";break;
+			case ERR_OUTRANGE: info = "The retrieve index out of range.";break;
+			case ERR_NOFUNC: info = "The task does not exist.";break;
+			case WAR_TIMEOUT: info = "The task(s) timeout";break;
+			default :info = "Unsupported error code.";
+			}
+			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
+			strcat_s(strMsg,MAX_MSGLENTH,info);
+		}
+		else
+		{
+			char *info = "Unsupported error code.";
+			strcpy_s(strMsg,MAX_MSGLENTH,info);
+		}
+	}
+	else
+	{
+		HLOCAL hlocal = NULL;
+		DWORD dwSystemLocale = MAKELANGID( LANG_NEUTRAL, SUBLANG_NEUTRAL );  
+		BOOL bOk = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS |
+		FORMAT_MESSAGE_ALLOCATE_BUFFER,
+		NULL,errorcode,dwSystemLocale,(PTSTR)&hlocal, 0, NULL );
+		if(bOk && hlocal != NULL)
+		{
+			char *prefix = "Windows API failed: ";
+			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
+			strcat_s(strMsg,MAX_MSGLENTH,hlocal);
+			LocalFree(hlocal);
+		}
+	}
+	return 0;
 }

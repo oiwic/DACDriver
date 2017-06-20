@@ -3,14 +3,46 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.4.3
+	Modified: 2017.6.20
 	Description: Error define file of PC software.
 */
 
 #pragma once
 
-// Define format error code form of PC.
-#define FORMAT(NO) (0xE1800000|NO)
+// Message ID:USERDEF
+// Message text:
+// The Error Message is define by user.
+#define USERDEF (0x20000000)
+
+// Message ID:SCR_PC
+// Message text:
+// The Error occur on PC
+#define SCR_PC (0x04000000)
+
+
+// Message ID:ERRORLEVEL
+// Message text:
+// Error level
+#define ERRORLEVEL (0xC0000000)
+
+// Message ID:WARNINGLEVEL
+// Message text:
+// Warning level
+#define WARNINGLEVEL (0x80000000)
+
+// Message ID:INFOLEVEL
+// Message text:
+// Info level
+#define INFOLEVEL (0x40000000)
+
+// Define format error code of PC.
+#define ERRORCODE(NO) (SCR_PC|ERRORLEVEL|USERDEF|NO)
+
+// Define format warning code of PC.
+#define WARNINGCODE(NO) (SCR_PC|WARNINGLEVEL|USERDEF|NO)
+
+// Define format info code of PC.
+#define INFOCODE(NO) (SCR_PC|INFOLEVEL|USERDEF|NO)
 
 // Message ID:OK
 // Message text:
@@ -20,29 +52,30 @@
 // Message ID:ERR_NOOBJ
 // Message text:
 // No object find
-#define ERR_NOOBJ FORMAT(1)
+#define ERR_NOOBJ ERRORCODE(1)
 
 // Message ID:ERR_WAIT
 // Message text:
 // WaitForSingleObject error
-#define ERR_WAIT FORMAT(2)
+#define ERR_WAIT ERRORCODE(2)
 
 // Message ID:ERR_PARA
 // Message text:
-// Parameter error
-#define ERR_PARA FORMAT(3)
+// Parameter(s) error.
+#define ERR_PARA ERRORCODE(3)
 
 // Message ID:ERR_OUTRANGE
 // Message text:
 // The retrieve index out of range.
-#define ERR_OUTRANGE FORMAT(4)
+#define ERR_OUTRANGE ERRORCODE(4)
 
 // Message ID:ERR_NOFUNC
 // Message text:
-// The task does not exsist.
-#define ERR_NOFUNC FORMAT(5)
+// The task does not exist.
+#define ERR_NOFUNC ERRORCODE(5)
 
-// Message ID:ERR_SOCKET
+
+// Message ID:WAR_TIMEOUT
 // Message text:
-// Socket error, detail from data.
-#define ERR_SOCKET FORMAT(6)
+// The task(s) timeout
+#define WAR_TIMEOUT WARNINGCODE(1)

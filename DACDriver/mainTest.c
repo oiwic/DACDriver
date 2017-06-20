@@ -101,3 +101,15 @@ int main(void)
 	*/
 }
 #endif
+
+//#define MAIN1
+#ifdef MAIN1
+#include "Header.h"
+#include <stdio.h>
+int main(void)
+{
+	char data[1024];
+	GetErrorMsg(ERR_NOFUNC,data);
+	printf("%s",data);
+}
+#endif
