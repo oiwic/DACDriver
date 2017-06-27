@@ -406,7 +406,7 @@ DLLAPI int GetErrorMsg(UINT errorcode ,char * strMsg)
 	{
 		if(errorcode & SCR_PC)
 		{
-			char *prefix = "USTCDAC API failed: ";
+			char *prefix = "USTCDACDRIVER API failed: ";
 			char *info;
 			switch(errorcode)
 			{
