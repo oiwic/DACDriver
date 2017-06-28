@@ -286,11 +286,8 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstruction,UINT *pPara1,UINT *pPara2)
 {
 	DACDeviceList* pSelect = FindList(id);
-	int ErrorCode = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	ErrorCode = WaitUntilFinished(id,20000);
-	if(ErrorCode != OK) return ErrorCode;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	*pInstruction = pSelect->task[offset].ctrlCmd.instrction;
