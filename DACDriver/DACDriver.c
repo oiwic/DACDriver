@@ -82,12 +82,13 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	WORD wVersionRequest;
 	DevicePara *pPara;
 	UINT deviceID = inet_addr(ip);
+	int ErrorCode = OK;
 	/* If device exist, direct return. */
 	pNew = FindList(deviceID);
 	if(pNew != NULL) 
 	{
 		*pID = deviceID; //retrun ID
-		return OK;
+		return ErrorCode;
 	}
 
 	/* If device does not exist, generate a now device */
@@ -100,21 +101,24 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 
 	if(WSAStartup(wVersionRequest,&(pNew->socketInfo.wsaData)) != 0) //Failed to request for certain version of winsock.
 	{
+		ErrorCode = WSAGetLastError();
 		free(pNew);
-		return WSAGetLastError();
+		return ErrorCode;
 	}
 	pNew->socketInfo.sockClient = socket(AF_INET,SOCK_STREAM,0);//Create a stream sock.
 	if(INVALID_SOCKET == pNew->socketInfo.sockClient)
 	{
+		ErrorCode = WSAGetLastError();
 		WSACleanup();
 		free(pNew);
-		return WSAGetLastError();
+		return ErrorCode;
 	}//创建套接字失败
 	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) != 0)
 	{
+		ErrorCode = WSAGetLastError();
 		WSACleanup();
 		free(pNew);
-		return WSAGetLastError();
+		return ErrorCode;
 	}//连接失败
 
 	pNew->semaphoreSpace = CreateSemaphore(0,WAIT_TASK_MAX,WAIT_TASK_MAX,0);		//Signaled，The device thread release signal when device finished the tasks.
@@ -141,7 +145,7 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	AddList(pNew);   //Add the new device to list.
 	*pID = deviceID; //retrun ID
 
-	return OK;
+	return ErrorCode;
 }
 
 DLLAPI int Close(UINT id)

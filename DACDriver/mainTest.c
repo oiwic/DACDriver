@@ -113,3 +113,16 @@ int main(void)
 	printf("%s",data);
 }
 #endif
+
+//#define MAIN2
+#ifdef MAIN2
+#include "Header.h"
+#include <stdio.h>
+int main(void)
+{
+	int ret=0;
+	unsigned int id;
+	ret = Open(&id,"10.0.0.3",80);
+	printf("%d",ret);
+}
+#endif
