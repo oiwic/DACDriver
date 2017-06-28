@@ -382,6 +382,7 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 	DACDeviceList* pSelect = FindList(id);
 	UINT i = 1;
 	UINT index = 0;
+	*pPosition = 0;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	WaitUntilFinished(id,0);
 	*pIsSuccessed = 1;
