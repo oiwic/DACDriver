@@ -286,11 +286,11 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstruction,UINT *pPara1,UINT *pPara2)
 {
 	DACDeviceList* pSelect = FindList(id);
-	int bFinished = OK;
+	int ErrorCode = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	bFinished = WaitUntilFinished(id,1000);
-	if(bFinished != 0)	return bFinished;
+	ErrorCode = WaitUntilFinished(id,20000);
+	if(ErrorCode != OK) return ErrorCode;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	*pInstruction = pSelect->task[offset].ctrlCmd.instrction;
@@ -309,11 +309,11 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 DLLAPI int GetReturn(UINT id,UINT offset,UINT *pResStat,UINT*pResData,WORD *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
-	int bFinished = OK;
+	int ErrorCode = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	bFinished = WaitUntilFinished(id,1000);
-	if(bFinished != 0)	return bFinished;
+	ErrorCode = WaitUntilFinished(id,20000);
+	if(ErrorCode != OK) return ErrorCode;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	memcpy(pResStat,&(pSelect->task[offset].resp.stat),4);
@@ -386,7 +386,7 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 	*pPosition = 0;
 	*pIsSuccessed = 1;
 	if(pSelect == NULL)	return ERR_NOOBJ;
-	ErrorCode = WaitUntilFinished(id,10000);
+	ErrorCode = WaitUntilFinished(id,20000);
 	if(ErrorCode != OK) return ErrorCode;
 	while(i <= pSelect->taskCounter && i <= WAIT_TASK_MAX)
 	{	
