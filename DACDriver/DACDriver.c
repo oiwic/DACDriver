@@ -341,28 +341,28 @@ DLLAPI int CheckFinished(UINT id,UINT *isFinished)
 DLLAPI int WaitUntilFinished(UINT id,UINT time)
 {
 	UINT isFinished = 0;
-	int ret = OK;
+	int ErrorCode = OK;
 	if(time == 0)
 	{
-		while(ret == OK)
+		while(ErrorCode == OK)
 		{
-			ret = CheckFinished(id,&isFinished);
-			if(ret != OK || isFinished == 1)break;
+			ErrorCode = CheckFinished(id,&isFinished);
+			if(ErrorCode != OK || isFinished == 1)break;
 			Sleep(1);
 		}
 	}
 	else
 	{
-		while(ret == OK  && time > 0)
+		while(ErrorCode == OK  && time > 0)
 		{
-			ret = CheckFinished(id,&isFinished);
-			if(ret != OK || isFinished == 1)break;
+			ErrorCode = CheckFinished(id,&isFinished);
+			if(ErrorCode != OK || isFinished == 1)break;
 			time = time - 1;
 			Sleep(1);
 		}
-		if(isFinished == 0)ret = WAR_TIMEOUT;
+		if(time == 0) ErrorCode = WAR_TIMEOUT;
 	}
-	return ret;
+	return ErrorCode;
 }
 
 DLLAPI int GetSoftInformation(char *pInformation)
@@ -382,10 +382,12 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 	DACDeviceList* pSelect = FindList(id);
 	UINT i = 1;
 	UINT index = 0;
+	int ErrorCode;
 	*pPosition = 0;
-	if(pSelect == NULL)	return ERR_NOOBJ;
-	WaitUntilFinished(id,0);
 	*pIsSuccessed = 1;
+	if(pSelect == NULL)	return ERR_NOOBJ;
+	ErrorCode = WaitUntilFinished(id,10000);
+	if(ErrorCode != OK) return ErrorCode;
 	while(i <= pSelect->taskCounter && i <= WAIT_TASK_MAX)
 	{	
 		index = (pSelect->mainCounter + WAIT_TASK_MAX - i)%WAIT_TASK_MAX;
