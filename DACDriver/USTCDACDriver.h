@@ -60,4 +60,4 @@ DLLAPI int ScanDevice(char *);
 /* Check if all task successed. */
 DLLAPI int CheckSuccessed(UINT/*id*/,UINT */*pIsSuccessed*/,UINT*/*pPosition*/);
 /* Get lastest error message */
-DLLAPI int GetErrorMsg(UINT/* errorcode */,char */* strMsg */);
+DLLAPI int GetErrorMsg(int/* errorcode */,char */* strMsg */);

@@ -404,7 +404,7 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 	return OK;
 }
 
-DLLAPI int GetErrorMsg(UINT errorcode ,char * strMsg)
+DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 {
 	if(errorcode & USERDEF)
 	{
