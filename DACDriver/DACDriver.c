@@ -414,7 +414,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 			char *info;
 			switch(errorcode)
 			{
-			case ERR_NOOBJ:info = "No object find.";break;
+			case ERR_NOOBJ:info = "No object found.";break;
 			case ERR_WAIT: info = "WaitForSingleObject error.";break;
 			case ERR_PARA: info = "Parameter(s) error.";break;
 			case ERR_OUTRANGE: info = "The retrieve index out of range.";break;
