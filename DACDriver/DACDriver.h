@@ -10,7 +10,7 @@
 #pragma once
 
 /* Define software version */
-#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.6 @ 2017/06/20")
+#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.7 @ 2017/06/30")
 
 /* Define the channel of a DAC */
 #define CHANNEL_NUM 4
@@ -30,10 +30,9 @@
 //Define four different functions.
 typedef enum FunctionType
 {
-	FixParameterSend,
-	FlexParameterSend,
-	FixParameterRecv,
-	FlexParameterRecv
+	WriteInstructionType,
+	WriteMemoryType,
+	ReadMemoryType
 }FunctionType;
 
 /* Command struct. */

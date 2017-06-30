@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.6.20
+	Modified: 2017.6.30
 	Description: The main body of DACDriver.
 */
 
@@ -180,7 +180,7 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = para2;
 		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		pSelect->task[pSelect->mainCounter].funcType = WriteInstructionType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
@@ -190,31 +190,6 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		return OK;
 	}
 	return ERR_WAIT;
-}
-
-DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
-{
-	DACDeviceList* pSelect = FindList(id);
-	DWORD obj;
-	if(pSelect == NULL) return ERR_NOOBJ;
-	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
-	if(obj == WAIT_OBJECT_0)
-	{
-		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
-		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
-		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = 0;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
-		free(pSelect->task[pSelect->mainCounter].pData);
-		pSelect->task[pSelect->mainCounter].pData = NULL;
-		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
-		pSelect->mainCounter = ((pSelect->mainCounter)+1)%WAIT_TASK_MAX;
-		pSelect->taskCounter = pSelect->taskCounter + 1;
-		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
-		return OK;
-	}
-	return ERR_WAIT;
-
 }
 
 DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pData)
@@ -230,7 +205,7 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
 		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		pSelect->task[pSelect->mainCounter].funcType = WriteMemoryType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
 		memcpy(pSelect->task[pSelect->mainCounter].pData,pData,length);
@@ -255,7 +230,7 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
 		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
+		pSelect->task[pSelect->mainCounter].funcType = ReadMemoryType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
 		pSelect->task[pSelect->mainCounter].pFunc = &ReadMemoryExe;
@@ -299,10 +274,9 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	*pPara2 = pSelect->task[offset].ctrlCmd.para2;
 	switch(pSelect->task[offset].funcType)
 	{
-	case FixParameterSend: *pFunctype = 1; break;
-	case FixParameterRecv: *pFunctype = 2; break;
-	case FlexParameterSend:*pFunctype = 3; break;
-	case FlexParameterRecv:*pFunctype = 4; break;
+	case WriteInstructionType: *pFunctype = 1; break;
+	case WriteMemoryType:	   *pFunctype = 2; break;
+	case ReadMemoryType:	   *pFunctype = 3; break;
 	}
 	return OK;
 }
@@ -319,7 +293,7 @@ DLLAPI int GetReturn(UINT id,UINT offset,UINT *pResStat,UINT*pResData,WORD *pDat
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	memcpy(pResStat,&(pSelect->task[offset].resp.stat),4);
 	memcpy(pResData,&(pSelect->task[offset].resp.data),4);
-	if(pSelect->task[offset].funcType == FlexParameterSend || pSelect->task[offset].funcType == FlexParameterRecv)
+	if(pSelect->task[offset].funcType == WriteMemoryType || pSelect->task[offset].funcType == ReadMemoryType)
 		memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);
 	return OK;
 }
