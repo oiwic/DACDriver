@@ -46,7 +46,7 @@ DLLAPI int SetTimeOut(UINT/*id*/,UINT /*direction*/,float/*time*/);
 /* Get funtion type and parameter */
 DLLAPI int GetFunctionType(UINT/*id*/,UINT/*offset*/,UINT*/*pFunctype*/,UINT */*pInstruction*/,UINT */*pPara1*/,UINT */*pPara2*/);
 /* If run as PARALLEL mode, the result will be store in stack, The stack is first in last out.*/
-DLLAPI int GetReturn(UINT/*id*/,UINT /*offset*/,UINT*/*pRespStat*/,UINT*/*pRespData*/,WORD*/*pData*/);
+DLLAPI int GetReturn(UINT/*id*/,UINT /*offset*/,int*/*pRespStat*/,int*/*pRespData*/,WORD*/*pData*/);
 /* Check whether the task execute finished. */
 DLLAPI int CheckFinished(UINT/*id*/,UINT* /*isFinished*/);
 /* Wait task finished */

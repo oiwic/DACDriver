@@ -46,8 +46,8 @@ typedef struct CtrlCmd
 /* FPGA response data struct. */
 typedef struct Resp
 {
-    UINT  stat;
-    UINT  data;
+    int  stat;
+    int  data;
 }Resp;
 
 /* Define function type, four function have same type. */

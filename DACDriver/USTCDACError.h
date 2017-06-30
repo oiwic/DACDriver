@@ -74,6 +74,11 @@
 // The task does not exist.
 #define ERR_NOFUNC ERRORCODE(5)
 
+// Message ID:ERR_NOEXEC
+// Message text:
+// The task does not exec.
+#define ERR_NOEXEC ERRORCODE(6)
+
 
 // Message ID:WAR_TIMEOUT
 // Message text:

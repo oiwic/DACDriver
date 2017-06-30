@@ -90,7 +90,6 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 		*pID = deviceID; //retrun ID
 		return ErrorCode;
 	}
-
 	/* If device does not exist, generate a now device */
 	pNew  = (DACDeviceList*)malloc(sizeof(DACDeviceList));
 
@@ -179,7 +178,7 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = para2;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
+		pSelect->task[pSelect->mainCounter].resp.stat = ERR_NOEXEC;
 		pSelect->task[pSelect->mainCounter].funcType = WriteInstructionType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = NULL;
@@ -204,7 +203,7 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
+		pSelect->task[pSelect->mainCounter].resp.stat = ERR_NOEXEC;
 		pSelect->task[pSelect->mainCounter].funcType = WriteMemoryType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
@@ -229,7 +228,7 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
+		pSelect->task[pSelect->mainCounter].resp.stat = ERR_NOEXEC;
 		pSelect->task[pSelect->mainCounter].funcType = ReadMemoryType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
@@ -281,7 +280,7 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	return OK;
 }
 
-DLLAPI int GetReturn(UINT id,UINT offset,UINT *pResStat,UINT*pResData,WORD *pData)
+DLLAPI int GetReturn(UINT id,UINT offset,int *pResStat,int*pResData,WORD *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
 	int ErrorCode = OK;
@@ -394,6 +393,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 			case ERR_OUTRANGE: info = "The retrieve index out of range.";break;
 			case ERR_NOFUNC: info = "The task does not exist.";break;
 			case WAR_TIMEOUT: info = "The task(s) timeout";break;
+			case ERR_NOEXEC: info = "The task does not execute.";break;
 			default :info = "Unsupported error code.";
 			}
 			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
