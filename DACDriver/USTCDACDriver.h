@@ -37,8 +37,6 @@ DLLAPI int Open(UINT */*pID*/,char*/*ip*/,WORD/*port*/);
 DLLAPI int Close(UINT/*id*/);
 /* Write a command to FPGA */
 DLLAPI int WriteInstruction(UINT/*id*/,UINT/*instructino*/,UINT/*para1*/,UINT/*para2*/);
-/* Read a register from FPGA. */
-DLLAPI int ReadInstruction(UINT/*id*/,UINT/*instruction*/,UINT/*addr*/);
 /* Write data to DDR4 */
 DLLAPI int WriteMemory(UINT/*id*/,UINT/*instruction*/,UINT/*start*/,UINT/*length*/,WORD*/*pData*/);
 /* Read data from DDR4 */
