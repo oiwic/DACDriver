@@ -387,14 +387,14 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 			char *info;
 			switch(errorcode)
 			{
-			case ERR_NOOBJ:info = "No object found.";break;
-			case ERR_WAIT: info = "WaitForSingleObject error.";break;
-			case ERR_PARA: info = "Parameter(s) error.";break;
-			case ERR_OUTRANGE: info = "The retrieve index out of range.";break;
-			case ERR_NOFUNC: info = "The task does not exist.";break;
-			case WAR_TIMEOUT: info = "The task(s) timeout";break;
-			case ERR_NOEXEC: info = "The task does not execute.";break;
-			default :info = "Unsupported error code.";
+			case ERR_NOOBJ:info = "No object found.\n";break;
+			case ERR_WAIT: info = "WaitForSingleObject error.\n";break;
+			case ERR_PARA: info = "Parameter(s) error.\n";break;
+			case ERR_OUTRANGE: info = "The retrieve index out of range.\n";break;
+			case ERR_NOFUNC: info = "The task does not exist.\n";break;
+			case WAR_TIMEOUT: info = "The task(s) timeout.\n";break;
+			case ERR_NOEXEC: info = "The task does not execute.\n";break;
+			default :info = "Unsupported error code.\n";
 			}
 			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
 			strcat_s(strMsg,MAX_MSGLENTH,info);
