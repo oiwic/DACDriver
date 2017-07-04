@@ -153,11 +153,11 @@ DLLAPI int Close(UINT id)
 	pNow = FindList(id);
 	if(pNow == NULL) return ERR_NOOBJ;
 	pNow->exitFlag = 1;
-	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,INFINITE))
+	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,200))
 	{
-		CloseHandle(pNow->hThread);
-		CloseHandle(pNow->semaphoreTask);
-		CloseHandle(pNow->semaphoreSpace);
+		if(!CloseHandle(pNow->hThread)) return GetLastError();
+		if(!CloseHandle(pNow->semaphoreTask)) return GetLastError();
+		if(!CloseHandle(pNow->semaphoreSpace)) return GetLastError();
 		closesocket(pNow->socketInfo.sockClient);
 		WSACleanup();
 		ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
