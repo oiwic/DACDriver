@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.6.30
+	Modified: 2017.7.6
 	Description: The main body of DACDriver.
 */
 
@@ -153,12 +153,12 @@ DLLAPI int Close(UINT id)
 	pNow = FindList(id);
 	if(pNow == NULL) return ERR_NOOBJ;
 	pNow->exitFlag = 1;
-	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,200))
+	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,2000))
 	{
 		if(!CloseHandle(pNow->hThread)) return GetLastError();
 		if(!CloseHandle(pNow->semaphoreTask)) return GetLastError();
 		if(!CloseHandle(pNow->semaphoreSpace)) return GetLastError();
-		closesocket(pNow->socketInfo.sockClient);
+		if(closesocket(pNow->socketInfo.sockClient)) return WSAGetLastError();
 		WSACleanup();
 		ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
 		DeleteList(pNow);
@@ -247,7 +247,7 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 	UINT timeOut = (UINT)(time*1000);
 	int bFinished = OK;
 	if(pSelect == NULL) return ERR_NOOBJ;
-	bFinished = WaitUntilFinished(id,1000);
+	bFinished = WaitUntilFinished(id,2000);
 	if(bFinished != 0)	return bFinished;
 	if(direction == 0)
 	{
@@ -286,7 +286,7 @@ DLLAPI int GetReturn(UINT id,UINT offset,int *pResStat,int*pResData,WORD *pData)
 	int ErrorCode = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	ErrorCode = WaitUntilFinished(id,20000);
+	ErrorCode = WaitUntilFinished(id,2000);
 	if(ErrorCode != OK) return ErrorCode;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
@@ -360,7 +360,7 @@ DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 	*pPosition = 0;
 	*pIsSuccessed = 1;
 	if(pSelect == NULL)	return ERR_NOOBJ;
-	ErrorCode = WaitUntilFinished(id,20000);
+	ErrorCode = WaitUntilFinished(id,2000);
 	if(ErrorCode != OK) return ErrorCode;
 	while(i <= pSelect->taskCounter && i <= WAIT_TASK_MAX)
 	{	

@@ -10,7 +10,7 @@
 #pragma once
 
 /* Define software version */
-#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.7 @ 2017/06/30")
+#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.7 @ 2017/7/6")
 
 /* Define the channel of a DAC */
 #define CHANNEL_NUM 4
