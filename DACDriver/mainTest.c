@@ -126,3 +126,19 @@ int main(void)
 	printf("%d",ret);
 }
 #endif
+
+#define MAIN3
+#ifdef MAIN3
+#include "Header.h"
+#include <stdio.h>
+int main(void)
+{
+	int ret=0;
+	unsigned int id;
+	ret = Open(&id,"10.0.1.108",80);
+	printf("%d",ret);
+	ret = Close(id);
+	printf("%d",ret);
+	return 0;
+}
+#endif

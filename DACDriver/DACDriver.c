@@ -115,6 +115,7 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) != 0)
 	{
 		ErrorCode = WSAGetLastError();
+		closesocket(pNew->socketInfo.sockClient);
 		WSACleanup();
 		free(pNew);
 		return ErrorCode;
@@ -153,7 +154,7 @@ DLLAPI int Close(UINT id)
 	pNow = FindList(id);
 	if(pNow == NULL) return ERR_NOOBJ;
 	pNow->exitFlag = 1;
-	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,2000))
+	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,4000))
 	{
 		if(!CloseHandle(pNow->hThread)) return GetLastError();
 		if(!CloseHandle(pNow->semaphoreTask)) return GetLastError();

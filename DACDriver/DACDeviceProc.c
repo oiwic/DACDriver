@@ -24,21 +24,27 @@ UINT WINAPI DeviceProc(LPVOID lpParameter)
 	{
 		DWORD obj;
 		obj = WaitForSingleObject(*pSemaphoreTask,10);
-		if(WAIT_OBJECT_0 == obj && *pFlag == 0)
+		if(*pFlag == 0)
 		{
-			(pFirst+(*pDeviceCounter))->pFunc(pSockDevice,(pFirst+(*pDeviceCounter))->ctrlCmd,&((pFirst + (*pDeviceCounter))->resp),(pFirst + (*pDeviceCounter))->pData);
-			*pDeviceCounter = ((*pDeviceCounter)+1)%WAIT_TASK_MAX;
-			ReleaseSemaphore(*pSemaphoreSpace,1,0);
+			if(WAIT_OBJECT_0 == obj)
+			{
+				(pFirst+(*pDeviceCounter))->pFunc(pSockDevice,(pFirst+(*pDeviceCounter))->ctrlCmd,&((pFirst + (*pDeviceCounter))->resp),(pFirst + (*pDeviceCounter))->pData);
+				*pDeviceCounter = ((*pDeviceCounter)+1)%WAIT_TASK_MAX;
+				ReleaseSemaphore(*pSemaphoreSpace,1,0);
+			}
+			else
+				continue;
 		}
-		else if(WAIT_OBJECT_0 == obj && *pFlag == 1)
-		{
-			ReleaseSemaphore(*pSemaphoreSpace,1,0);
-			break;
-		}
-		else if(*pFlag == 1)
-			break;
 		else
-			continue;
+		{
+			if(WAIT_OBJECT_0 == obj)
+			{
+				*pDeviceCounter = ((*pDeviceCounter)+1)%WAIT_TASK_MAX;
+				ReleaseSemaphore(*pSemaphoreSpace,1,0);
+			}
+			else
+				break;
+		}
 	}
 	return 0;
 }
