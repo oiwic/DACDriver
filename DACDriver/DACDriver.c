@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.4.3
+	Modified: 2017.7.6
 	Description: The main body of DACDriver.
 */
 
@@ -82,14 +82,14 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	WORD wVersionRequest;
 	DevicePara *pPara;
 	UINT deviceID = inet_addr(ip);
+	int ErrorCode = OK;
 	/* If device exist, direct return. */
 	pNew = FindList(deviceID);
 	if(pNew != NULL) 
 	{
 		*pID = deviceID; //retrun ID
-		return OK;
+		return ErrorCode;
 	}
-
 	/* If device does not exist, generate a now device */
 	pNew  = (DACDeviceList*)malloc(sizeof(DACDeviceList));
 
@@ -100,21 +100,25 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 
 	if(WSAStartup(wVersionRequest,&(pNew->socketInfo.wsaData)) != 0) //Failed to request for certain version of winsock.
 	{
+		ErrorCode = WSAGetLastError();
 		free(pNew);
-		return WSAGetLastError();
+		return ErrorCode;
 	}
 	pNew->socketInfo.sockClient = socket(AF_INET,SOCK_STREAM,0);//Create a stream sock.
 	if(INVALID_SOCKET == pNew->socketInfo.sockClient)
 	{
+		ErrorCode = WSAGetLastError();
 		WSACleanup();
 		free(pNew);
-		return WSAGetLastError();
+		return ErrorCode;
 	}//创建套接字失败
 	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) != 0)
 	{
+		ErrorCode = WSAGetLastError();
+		closesocket(pNew->socketInfo.sockClient);
 		WSACleanup();
 		free(pNew);
-		return WSAGetLastError();
+		return ErrorCode;
 	}//连接失败
 
 	pNew->semaphoreSpace = CreateSemaphore(0,WAIT_TASK_MAX,WAIT_TASK_MAX,0);		//Signaled，The device thread release signal when device finished the tasks.
@@ -141,27 +145,35 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	AddList(pNew);   //Add the new device to list.
 	*pID = deviceID; //retrun ID
 
-	return OK;
+	return ErrorCode;
 }
 
 DLLAPI int Close(UINT id)
 {
 	DACDeviceList *pNow;
+	int waitReturn;
 	pNow = FindList(id);
 	if(pNow == NULL) return ERR_NOOBJ;
 	pNow->exitFlag = 1;
-	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,INFINITE))
+	waitReturn = WaitForSingleObject(pNow->hThread,4000);
+	switch(waitReturn)
 	{
-		CloseHandle(pNow->hThread);
-		CloseHandle(pNow->semaphoreTask);
-		CloseHandle(pNow->semaphoreSpace);
-		closesocket(pNow->socketInfo.sockClient);
-		WSACleanup();
-		ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
-		DeleteList(pNow);
-		return OK;
+		case WAIT_OBJECT_0:
+		{
+			if(!CloseHandle(pNow->hThread)) return GetLastError();
+			if(!CloseHandle(pNow->semaphoreTask)) return GetLastError();
+			if(!CloseHandle(pNow->semaphoreSpace)) return GetLastError();
+			if(closesocket(pNow->socketInfo.sockClient)) return WSAGetLastError();
+			WSACleanup();
+			ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
+			DeleteList(pNow);
+			return OK;
+		}
+		case WAIT_TIMEOUT: return ERR_WAIT;
+		case WAIT_FAILED : return GetLastError();
+		case WAIT_ABANDONED:return ERR_WAITAB;
+		default: return ERR_ERR;
 	}
-	return ERR_WAIT;
 }
 
 DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
@@ -175,8 +187,8 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = para2;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		pSelect->task[pSelect->mainCounter].resp.stat = ERR_NOEXEC;
+		pSelect->task[pSelect->mainCounter].funcType = WriteInstructionType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = NULL;
 		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
@@ -186,31 +198,6 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 		return OK;
 	}
 	return ERR_WAIT;
-}
-
-DLLAPI int ReadInstruction(UINT id,UINT instruction,UINT para1)
-{
-	DACDeviceList* pSelect = FindList(id);
-	DWORD obj;
-	if(pSelect == NULL) return ERR_NOOBJ;
-	obj = WaitForSingleObject(pSelect->semaphoreSpace,10);
-	if(obj == WAIT_OBJECT_0)
-	{
-		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
-		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = para1;
-		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = 0;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
-		free(pSelect->task[pSelect->mainCounter].pData);
-		pSelect->task[pSelect->mainCounter].pData = NULL;
-		pSelect->task[pSelect->mainCounter].pFunc = &RWInstructionExe;
-		pSelect->mainCounter = ((pSelect->mainCounter)+1)%WAIT_TASK_MAX;
-		pSelect->taskCounter = pSelect->taskCounter + 1;
-		ReleaseSemaphore(pSelect->semaphoreTask,1,0);
-		return OK;
-	}
-	return ERR_WAIT;
-
 }
 
 DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pData)
@@ -225,8 +212,8 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterSend;
+		pSelect->task[pSelect->mainCounter].resp.stat = ERR_NOEXEC;
+		pSelect->task[pSelect->mainCounter].funcType = WriteMemoryType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
 		memcpy(pSelect->task[pSelect->mainCounter].pData,pData,length);
@@ -250,8 +237,8 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 		pSelect->task[pSelect->mainCounter].ctrlCmd.instrction = instruction;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para1 = start;
 		pSelect->task[pSelect->mainCounter].ctrlCmd.para2 = length;
-		pSelect->task[pSelect->mainCounter].resp.stat = -1;
-		pSelect->task[pSelect->mainCounter].funcType = FixParameterRecv;
+		pSelect->task[pSelect->mainCounter].resp.stat = ERR_NOEXEC;
+		pSelect->task[pSelect->mainCounter].funcType = ReadMemoryType;
 		free(pSelect->task[pSelect->mainCounter].pData);
 		pSelect->task[pSelect->mainCounter].pData = (char*)malloc(length);
 		pSelect->task[pSelect->mainCounter].pFunc = &ReadMemoryExe;
@@ -267,8 +254,10 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT timeOut = (UINT)(time*1000);
+	int bFinished = OK;
 	if(pSelect == NULL) return ERR_NOOBJ;
-	WaitUntilFinished(id);
+	bFinished = WaitUntilFinished(id,2000);
+	if(bFinished != 0)	return bFinished;
 	if(direction == 0)
 	{
 		setsockopt(pSelect->socketInfo.sockClient,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeOut,sizeof(int));
@@ -286,7 +275,6 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	DACDeviceList* pSelect = FindList(id);
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	WaitUntilFinished(id);
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
 	*pInstruction = pSelect->task[offset].ctrlCmd.instrction;
@@ -294,30 +282,28 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	*pPara2 = pSelect->task[offset].ctrlCmd.para2;
 	switch(pSelect->task[offset].funcType)
 	{
-	case FixParameterSend: *pFunctype = 1; break;
-	case FixParameterRecv: *pFunctype = 2; break;
-	case FlexParameterSend:*pFunctype = 3; break;
-	case FlexParameterRecv:*pFunctype = 4; break;
+	case WriteInstructionType: *pFunctype = 1; break;
+	case WriteMemoryType:	   *pFunctype = 2; break;
+	case ReadMemoryType:	   *pFunctype = 3; break;
 	}
 	return OK;
 }
 
-DLLAPI int GetReturn(UINT id,UINT offset,WORD *pData)
+DLLAPI int GetReturn(UINT id,UINT offset,int *pResStat,int*pResData,WORD *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
+	int ErrorCode = OK;
 	if(pSelect == NULL)	return ERR_NOOBJ;
 	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
-	WaitUntilFinished(id);
+	ErrorCode = WaitUntilFinished(id,2000);
+	if(ErrorCode != OK) return ErrorCode;
 	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
 	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
-	switch(pSelect->task[offset].funcType)
-	{
-	case FixParameterSend: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
-	case FixParameterRecv: memcpy(pData,&(pSelect->task[offset].resp.data),4);break;
-	case FlexParameterSend:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
-	case FlexParameterRecv:memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);break;
-	}
-	return pSelect->task[offset].resp.stat;
+	memcpy(pResStat,&(pSelect->task[offset].resp.stat),4);
+	memcpy(pResData,&(pSelect->task[offset].resp.data),4);
+	if(pSelect->task[offset].funcType == WriteMemoryType || pSelect->task[offset].funcType == ReadMemoryType)
+		memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);
+	return OK;
 }
 
 DLLAPI int CheckFinished(UINT id,UINT *isFinished)
@@ -335,16 +321,31 @@ DLLAPI int CheckFinished(UINT id,UINT *isFinished)
 	return ERR_NOOBJ;
 }
 
-DLLAPI int WaitUntilFinished(UINT id)
+DLLAPI int WaitUntilFinished(UINT id,UINT time)
 {
 	UINT isFinished = 0;
-	int ret = OK;
-	while(!isFinished && ret == OK)
+	int ErrorCode = OK;
+	if(time == 0)
 	{
-		ret = CheckFinished(id,&isFinished);
-		Sleep(1);
+		while(ErrorCode == OK)
+		{
+			ErrorCode = CheckFinished(id,&isFinished);
+			if(ErrorCode != OK || isFinished == 1)break;
+			Sleep(1);
+		}
 	}
-	return ret;
+	else
+	{
+		while(ErrorCode == OK  && time > 0)
+		{
+			ErrorCode = CheckFinished(id,&isFinished);
+			if(ErrorCode != OK || isFinished == 1)break;
+			time = time - 1;
+			Sleep(1);
+		}
+		if(time == 0) ErrorCode = WAR_TIMEOUT;
+	}
+	return ErrorCode;
 }
 
 DLLAPI int GetSoftInformation(char *pInformation)
@@ -359,24 +360,77 @@ DLLAPI int ScanDevice(char *pDeviceList)
 	return OK;
 }
 
-DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed)
+DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
 {
 	DACDeviceList* pSelect = FindList(id);
-	UINT i = 0;
+	UINT i = 1;
 	UINT index = 0;
-	if(pSelect == NULL)	return ERR_NOOBJ;
-	WaitUntilFinished(id);
+	int ErrorCode;
+	*pPosition = 0;
 	*pIsSuccessed = 1;
-	while(i < pSelect->taskCounter && i < WAIT_TASK_MAX)
+	if(pSelect == NULL)	return ERR_NOOBJ;
+	ErrorCode = WaitUntilFinished(id,2000);
+	if(ErrorCode != OK) return ErrorCode;
+	while(i <= pSelect->taskCounter && i <= WAIT_TASK_MAX)
 	{	
 		index = (pSelect->mainCounter + WAIT_TASK_MAX - i)%WAIT_TASK_MAX;
 		if(pSelect->task[index].resp.stat != OK)
 		{
 			*pIsSuccessed = 0;
+			*pPosition = i;
 			break;
 		}
 		i++;
 	}
 	pSelect->taskCounter = 0;
 	return OK;
+}
+
+DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
+{
+	if(errorcode & USERDEF)
+	{
+		if(errorcode & SCR_PC)
+		{
+			char *prefix = "USTCDACDRIVER API failed: ";
+			char *info;
+			switch(errorcode)
+			{
+			case ERR_ERR: info  = "Undefined error code.";break;
+			case ERR_NOOBJ:info = "No object found.\n";break;
+			case ERR_WAIT: info = "WaitForSingleObject error.\n";break;
+			case ERR_PARA: info = "Parameter(s) error.\n";break;
+			case ERR_OUTRANGE: info = "The retrieve index out of range.\n";break;
+			case ERR_NOFUNC: info = "The task does not exist.\n";break;
+			case WAR_TIMEOUT: info = "The task(s) timeout.\n";break;
+			case ERR_NOEXEC: info = "The task does not execute.\n";break;
+			case ERR_WAITAB: info = "WaitForSingleObject abandoned.\n";break;
+			default :info = "Unsupported error code.\n";
+			}
+			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
+			strcat_s(strMsg,MAX_MSGLENTH,info);
+		}
+		else
+		{
+			char *info = "Unsupported error code from DAC board.";
+			strcpy_s(strMsg,MAX_MSGLENTH,info);
+		}
+	}
+	else
+	{
+		HLOCAL hlocal = NULL;
+		DWORD dwSystemLocale = MAKELANGID( LANG_NEUTRAL, SUBLANG_NEUTRAL );  
+		BOOL bOk = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS |
+		FORMAT_MESSAGE_ALLOCATE_BUFFER,
+		NULL,errorcode,dwSystemLocale,(PTSTR)&hlocal, 0, NULL );
+		if(bOk && hlocal != NULL)
+		{
+			char *prefix = "Windows API failed: ";
+			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
+			strcat_s(strMsg,MAX_MSGLENTH,hlocal);
+			LocalFree(hlocal);
+		}
+	}
+	return 0;
 }

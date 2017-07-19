@@ -3,14 +3,14 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.4.3
+	Modified: 2017.6.20
 	Description:
 */
 
 #pragma once
 
 /* Define software version */
-#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.5 @ 2017/06/19")
+#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.7 @ 2017/7/6")
 
 /* Define the channel of a DAC */
 #define CHANNEL_NUM 4
@@ -24,14 +24,15 @@
 /* Define max wait task num */
 #define WAIT_TASK_MAX 256
 
+/* Define maximum message length */
+#define MAX_MSGLENTH 1024
 
 //Define four different functions.
 typedef enum FunctionType
 {
-	FixParameterSend,
-	FlexParameterSend,
-	FixParameterRecv,
-	FlexParameterRecv
+	WriteInstructionType,
+	WriteMemoryType,
+	ReadMemoryType
 }FunctionType;
 
 /* Command struct. */
@@ -45,8 +46,8 @@ typedef struct CtrlCmd
 /* FPGA response data struct. */
 typedef struct Resp
 {
-    UINT  stat;
-    UINT  data;
+    int  stat;
+    int  data;
 }Resp;
 
 /* Define function type, four function have same type. */
@@ -69,6 +70,7 @@ typedef struct SocketInfo
 	SOCKADDR_IN addrSrv;
 	WSADATA wsaData;
 }SocketInfo;
+
 /* Define DACDeviceList for main thread. */
 typedef struct DACDeviceList
 {
@@ -84,6 +86,7 @@ typedef struct DACDeviceList
 	UINT taskCounter;				//Indicate the number of task the check function will consider.
 	struct DACDeviceList *pNext;	//The Next Device pointer.
 }DACDeviceList;
+
 /* Parameter for device thread. */
 typedef struct DevicePara
 {
@@ -94,6 +97,7 @@ typedef struct DevicePara
 	SOCKET	 *pSocket;
 	UINT	 *pDeviceCounter;
 }DevicePara;
+
 /* Add a device to list head */
 void AddList(DACDeviceList *pNow);
 /* Delete a device from list */

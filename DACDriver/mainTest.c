@@ -101,3 +101,44 @@ int main(void)
 	*/
 }
 #endif
+
+//#define MAIN1
+#ifdef MAIN1
+#include "Header.h"
+#include <stdio.h>
+int main(void)
+{
+	char data[1024];
+	GetErrorMsg(ERR_NOFUNC,data);
+	printf("%s",data);
+}
+#endif
+
+//#define MAIN2
+#ifdef MAIN2
+#include "Header.h"
+#include <stdio.h>
+int main(void)
+{
+	int ret=0;
+	unsigned int id;
+	ret = Open(&id,"10.0.0.3",80);
+	printf("%d",ret);
+}
+#endif
+
+#define MAIN3
+#ifdef MAIN3
+#include "Header.h"
+#include <stdio.h>
+int main(void)
+{
+	int ret=0;
+	unsigned int id;
+	ret = Open(&id,"10.0.1.108",80);
+	printf("%d",ret);
+	ret = Close(id);
+	printf("%d",ret);
+	return 0;
+}
+#endif
