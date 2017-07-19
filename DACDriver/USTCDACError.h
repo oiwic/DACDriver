@@ -49,6 +49,11 @@
 // No error and return seccessfully
 #define OK 0
 
+// Message ID:ERR_ERR
+// Message text:
+// Undefined error code. 
+#define ERR_ERR ERRORCODE(0)
+
 // Message ID:ERR_NOOBJ
 // Message text:
 // No object find
@@ -78,6 +83,11 @@
 // Message text:
 // The task does not exec.
 #define ERR_NOEXEC ERRORCODE(6)
+
+// Message ID:ERR_WAITAB
+// Message text:
+// WaitForSingleObject abandoned.
+#define ERR_WAITAB ERRORCODE(7)
 
 
 // Message ID:WAR_TIMEOUT

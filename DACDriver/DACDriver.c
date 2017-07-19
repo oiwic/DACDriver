@@ -151,21 +151,29 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 DLLAPI int Close(UINT id)
 {
 	DACDeviceList *pNow;
+	int waitReturn;
 	pNow = FindList(id);
 	if(pNow == NULL) return ERR_NOOBJ;
 	pNow->exitFlag = 1;
-	if(WAIT_OBJECT_0 == WaitForSingleObject(pNow->hThread,4000))
+	waitReturn = WaitForSingleObject(pNow->hThread,4000);
+	switch(waitReturn)
 	{
-		if(!CloseHandle(pNow->hThread)) return GetLastError();
-		if(!CloseHandle(pNow->semaphoreTask)) return GetLastError();
-		if(!CloseHandle(pNow->semaphoreSpace)) return GetLastError();
-		if(closesocket(pNow->socketInfo.sockClient)) return WSAGetLastError();
-		WSACleanup();
-		ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
-		DeleteList(pNow);
-		return OK;
+		case WAIT_OBJECT_0:
+		{
+			if(!CloseHandle(pNow->hThread)) return GetLastError();
+			if(!CloseHandle(pNow->semaphoreTask)) return GetLastError();
+			if(!CloseHandle(pNow->semaphoreSpace)) return GetLastError();
+			if(closesocket(pNow->socketInfo.sockClient)) return WSAGetLastError();
+			WSACleanup();
+			ClearTask(&(pNow->task[0]),WAIT_TASK_MAX);
+			DeleteList(pNow);
+			return OK;
+		}
+		case WAIT_TIMEOUT: return ERR_WAIT;
+		case WAIT_FAILED : return GetLastError();
+		case WAIT_ABANDONED:return ERR_WAITAB;
+		default: return ERR_ERR;
 	}
-	return ERR_WAIT;
 }
 
 DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
@@ -388,6 +396,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 			char *info;
 			switch(errorcode)
 			{
+			case ERR_ERR: info  = "Undefined error code.";break;
 			case ERR_NOOBJ:info = "No object found.\n";break;
 			case ERR_WAIT: info = "WaitForSingleObject error.\n";break;
 			case ERR_PARA: info = "Parameter(s) error.\n";break;
@@ -395,6 +404,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 			case ERR_NOFUNC: info = "The task does not exist.\n";break;
 			case WAR_TIMEOUT: info = "The task(s) timeout.\n";break;
 			case ERR_NOEXEC: info = "The task does not execute.\n";break;
+			case ERR_WAITAB: info = "WaitForSingleObject abandoned.\n";break;
 			default :info = "Unsupported error code.\n";
 			}
 			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
@@ -402,7 +412,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 		}
 		else
 		{
-			char *info = "Unsupported error code.";
+			char *info = "Unsupported error code from DAC board.";
 			strcpy_s(strMsg,MAX_MSGLENTH,info);
 		}
 	}
