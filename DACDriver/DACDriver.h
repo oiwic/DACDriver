@@ -10,7 +10,7 @@
 #pragma once
 
 /* Define software version */
-#define DAC_DESCRIPTION ("USTCDAC DLL driver v1.7 @ 2017/7/6")
+#define DAC_DESCRIPTION ("USTCDAC dll driver v2.4 @2018/4/23")
 
 /* Define the channel of a DAC */
 #define CHANNEL_NUM 4
@@ -38,9 +38,9 @@ typedef enum FunctionType
 /* Command struct. */
 typedef struct CtrlCmd
 {
-	UINT instrction;
-	UINT para1;
-	UINT para2;
+	int instrction;
+	int para1;
+	int para2;
 }CtrlCmd;
 
 /* FPGA response data struct. */

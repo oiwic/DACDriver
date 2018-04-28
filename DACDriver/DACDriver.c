@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.7.6
+	Modified: 2018.4.23
 	Description: The main body of DACDriver.
 */
 
@@ -76,7 +76,7 @@ void ClearTask(TaskList* pTask,int num)
 	}
 }
 
-DLLAPI int Open(UINT *pID,char* ip,WORD port)
+DLLAPI int OpenDAC(UINT *pID,char* ip,USHORT port)
 {	
 	DACDeviceList *pNew;
 	WORD wVersionRequest;
@@ -111,7 +111,7 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 		WSACleanup();
 		free(pNew);
 		return ErrorCode;
-	}//创建套接字失败
+	}
 	if(connect(pNew->socketInfo.sockClient,(SOCKADDR*)&(pNew->socketInfo.addrSrv),sizeof(pNew->socketInfo.addrSrv)) != 0)
 	{
 		ErrorCode = WSAGetLastError();
@@ -119,9 +119,9 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 		WSACleanup();
 		free(pNew);
 		return ErrorCode;
-	}//连接失败
+	}
 
-	pNew->semaphoreSpace = CreateSemaphore(0,WAIT_TASK_MAX,WAIT_TASK_MAX,0);		//Signaled，The device thread release signal when device finished the tasks.
+	pNew->semaphoreSpace = CreateSemaphore(0,WAIT_TASK_MAX,WAIT_TASK_MAX,0);		//Signaled, The device thread release signal when device finished the tasks.
 	pNew->semaphoreTask  = CreateSemaphore(0,0,WAIT_TASK_MAX,0);					//Unsingnal, The main therad release signal when start the device thread.
 	pNew->exitFlag = 0;
 	pNew->id = deviceID;
@@ -148,7 +148,7 @@ DLLAPI int Open(UINT *pID,char* ip,WORD port)
 	return ErrorCode;
 }
 
-DLLAPI int Close(UINT id)
+DLLAPI int CloseDAC(UINT id)
 {
 	DACDeviceList *pNow;
 	int waitReturn;
@@ -176,7 +176,7 @@ DLLAPI int Close(UINT id)
 	}
 }
 
-DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
+DLLAPI int WriteInstruction(UINT id,int instruction,int para1,int para2)
 {
 	DACDeviceList* pSelect = FindList(id);
 	DWORD obj;
@@ -200,7 +200,7 @@ DLLAPI int WriteInstruction(UINT id,UINT instruction,UINT para1,UINT para2)
 	return ERR_WAIT;
 }
 
-DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pData)
+DLLAPI int WriteMemory(UINT id,int instruction,int start,int length,unsigned char* pData)
 {
 
 	DACDeviceList* pSelect = FindList(id);
@@ -226,7 +226,7 @@ DLLAPI int WriteMemory(UINT id,UINT instruction,UINT start,UINT length,WORD* pDa
 	return ERR_WAIT;
 }
 
-DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
+DLLAPI int ReadMemory(UINT id,int instruction,int start,int length)
 {
 	DACDeviceList* pSelect = FindList(id);
 	DWORD obj;
@@ -250,7 +250,7 @@ DLLAPI int ReadMemory(UINT id,UINT instruction,UINT start,UINT length)
 	return ERR_WAIT;
 }
 
-DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
+DLLAPI int SetTimeOut(UINT id,int direction,float time)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT timeOut = (UINT)(time*1000);
@@ -270,7 +270,7 @@ DLLAPI int SetTimeOut(UINT id,UINT direction,float time)
 	}
 }
 
-DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstruction,UINT *pPara1,UINT *pPara2)
+DLLAPI int GetFunctionType(UINT id,int offset,int *pFunctype,int *pInstruction,int *pPara1,int *pPara2)
 {
 	DACDeviceList* pSelect = FindList(id);
 	if(pSelect == NULL)	return ERR_NOOBJ;
@@ -289,7 +289,22 @@ DLLAPI int GetFunctionType(UINT id,UINT offset,UINT *pFunctype,UINT *pInstructio
 	return OK;
 }
 
-DLLAPI int GetReturn(UINT id,UINT offset,int *pResStat,int*pResData,WORD *pData)
+DLLAPI int GetCommandData(UINT id,int offset, unsigned char*pData)
+{
+	DACDeviceList* pSelect = FindList(id);
+	if(pSelect == NULL)	return ERR_NOOBJ;
+	if(offset >= WAIT_TASK_MAX) return ERR_OUTRANGE;
+	offset = (pSelect->mainCounter + WAIT_TASK_MAX - offset)%WAIT_TASK_MAX;
+	if(pSelect->task[offset].pFunc == NULL) return ERR_NOFUNC;
+	if(pSelect->task[offset].pData != NULL)
+	{
+		memcpy(pData,pSelect->task[offset].pData,pSelect->task[offset].ctrlCmd.para2);
+		return OK;
+	}
+	return ERR_NODATA;
+}
+
+DLLAPI int GetReturn(UINT id,int offset,int *pResStat,int*pResData,unsigned char *pData)
 {
 	DACDeviceList* pSelect = FindList(id);
 	int ErrorCode = OK;
@@ -306,7 +321,7 @@ DLLAPI int GetReturn(UINT id,UINT offset,int *pResStat,int*pResData,WORD *pData)
 	return OK;
 }
 
-DLLAPI int CheckFinished(UINT id,UINT *isFinished)
+DLLAPI int CheckFinished(UINT id,int *isFinished)
 {
 	DACDeviceList* pSelect = FindList(id);
 	if(pSelect != NULL)
@@ -321,9 +336,9 @@ DLLAPI int CheckFinished(UINT id,UINT *isFinished)
 	return ERR_NOOBJ;
 }
 
-DLLAPI int WaitUntilFinished(UINT id,UINT time)
+DLLAPI int WaitUntilFinished(UINT id,int time)
 {
-	UINT isFinished = 0;
+	int isFinished = 0;
 	int ErrorCode = OK;
 	if(time == 0)
 	{
@@ -360,7 +375,7 @@ DLLAPI int ScanDevice(char *pDeviceList)
 	return OK;
 }
 
-DLLAPI int CheckSuccessed(UINT id,UINT *pIsSuccessed,UINT *pPosition)
+DLLAPI int CheckSuccessed(UINT id,int *pIsSuccessed,int *pPosition)
 {
 	DACDeviceList* pSelect = FindList(id);
 	UINT i = 1;
@@ -405,6 +420,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 			case WAR_TIMEOUT: info = "The task(s) timeout.\n";break;
 			case ERR_NOEXEC: info = "The task does not execute.\n";break;
 			case ERR_WAITAB: info = "WaitForSingleObject abandoned.\n";break;
+			case ERR_NODATA: info = "The command does not has extra data.\n";break;
 			default :info = "Unsupported error code.\n";
 			}
 			strcpy_s(strMsg,MAX_MSGLENTH,prefix);
@@ -419,7 +435,7 @@ DLLAPI int GetErrorMsg(int errorcode ,char * strMsg)
 	else
 	{
 		HLOCAL hlocal = NULL;
-		DWORD dwSystemLocale = MAKELANGID( LANG_NEUTRAL, SUBLANG_NEUTRAL );  
+		DWORD dwSystemLocale = MAKELANGID( LANG_ENGLISH, SUBLANG_ENGLISH_US );  
 		BOOL bOk = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
 		FORMAT_MESSAGE_IGNORE_INSERTS |
 		FORMAT_MESSAGE_ALLOCATE_BUFFER,

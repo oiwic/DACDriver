@@ -127,7 +127,7 @@ int main(void)
 }
 #endif
 
-#define MAIN3
+//#define MAIN3
 #ifdef MAIN3
 #include "Header.h"
 #include <stdio.h>

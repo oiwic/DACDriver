@@ -3,7 +3,7 @@
 	Author:GuoCheng
 	E-mail:fortune@mail.ustc.edu.cn
 	All right reserved @ GuoCheng.
-	Modified: 2017.6.30
+	Modified: 2018.4.23
 	Description: Export function.
 */
 
@@ -14,48 +14,43 @@
 #define DLLAPI __declspec(dllimport)
 #endif
 
-#ifndef WORD
-#define WORD unsigned short
-#endif
 
 #ifndef UINT
 #define UINT unsigned int
 #endif
 
-#ifndef LPVOID
-#define LPVOID void*
-#endif
-
-#ifndef NULL
-#define NULL 0
+#ifndef USHORT
+#define USHORT unsigned short
 #endif
 
 
 /* Open a device and add it to device list. */
-DLLAPI int Open(UINT */*pID*/,char*/*ip*/,WORD/*port*/);
+DLLAPI int OpenDAC(UINT */*pID*/,char*/*ip*/,USHORT/*port*/);
 /* Close the device and clear the data */
-DLLAPI int Close(UINT/*id*/);
+DLLAPI int CloseDAC(UINT/*id*/);
 /* Write a command to FPGA */
-DLLAPI int WriteInstruction(UINT/*id*/,UINT/*instructino*/,UINT/*para1*/,UINT/*para2*/);
+DLLAPI int WriteInstruction(UINT/*id*/,int/*instructino*/,int/*para1*/,int/*para2*/);
 /* Write data to DDR4 */
-DLLAPI int WriteMemory(UINT/*id*/,UINT/*instruction*/,UINT/*start*/,UINT/*length*/,WORD*/*pData*/);
+DLLAPI int WriteMemory(UINT/*id*/,int/*instruction*/,int/*start*/,int/*length*/,unsigned char*/*pData*/);
 /* Read data from DDR4 */
-DLLAPI int ReadMemory(UINT/*id*/,UINT/*instruction*/,UINT/*start*/,UINT/*length*/);
+DLLAPI int ReadMemory(UINT/*id*/,int/*instruction*/,int/*start*/,int/*length*/);
 /* Set TCPIP timeout,uint:second. */
-DLLAPI int SetTimeOut(UINT/*id*/,UINT /*direction*/,float/*time*/);
+DLLAPI int SetTimeOut(UINT/*id*/,int /*direction*/,float/*time*/);
 /* Get funtion type and parameter */
-DLLAPI int GetFunctionType(UINT/*id*/,UINT/*offset*/,UINT*/*pFunctype*/,UINT */*pInstruction*/,UINT */*pPara1*/,UINT */*pPara2*/);
+DLLAPI int GetFunctionType(UINT/*id*/,int/*offset*/,int*/*pFunctype*/,int */*pInstruction*/,int */*pPara1*/,int */*pPara2*/);
 /* If run as PARALLEL mode, the result will be store in stack, The stack is first in last out.*/
-DLLAPI int GetReturn(UINT/*id*/,UINT /*offset*/,int*/*pRespStat*/,int*/*pRespData*/,WORD*/*pData*/);
+DLLAPI int GetReturn(UINT/*id*/,int /*offset*/,int*/*pRespStat*/,int*/*pRespData*/,unsigned char*/*pData*/);
+/* Get previous command data*/
+DLLAPI int GetCommandData(UINT id,int offset, unsigned char*pData);
 /* Check whether the task execute finished. */
-DLLAPI int CheckFinished(UINT/*id*/,UINT* /*isFinished*/);
+DLLAPI int CheckFinished(UINT/*id*/,int* /*isFinished*/);
 /* Wait task finished */
-DLLAPI int WaitUntilFinished(UINT /*id*/,UINT /*time*/);
+DLLAPI int WaitUntilFinished(UINT /*id*/,int /*time*/);
 /* Get software Information*/
 DLLAPI int GetSoftInformation(char */*description*/);
 /* Scan the local network */
 DLLAPI int ScanDevice(char *);
 /* Check if all task successed. */
-DLLAPI int CheckSuccessed(UINT/*id*/,UINT */*pIsSuccessed*/,UINT*/*pPosition*/);
+DLLAPI int CheckSuccessed(UINT/*id*/,int */*pIsSuccessed*/,int*/*pPosition*/);
 /* Get lastest error message */
 DLLAPI int GetErrorMsg(int/* errorcode */,char */* strMsg */);

@@ -89,6 +89,11 @@
 // WaitForSingleObject abandoned.
 #define ERR_WAITAB ERRORCODE(7)
 
+// Message ID:ERR_NODATA
+// Message text:
+// The command does not has extra data.
+#define ERR_NODATA ERRORCODE(8)
+
 
 // Message ID:WAR_TIMEOUT
 // Message text:
